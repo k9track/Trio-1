@@ -1,10 +1,170 @@
 import Charts
 import CoreData
 import LoopKitUI
+import Observation
 import SwiftUI
 import Swinject
 
 extension Treatments {
+    /// Represents a food item scanned via barcode with nutritional information
+    struct FoodItem: Identifiable, Codable, Hashable {
+        let id: UUID
+        let barcode: String
+        let name: String
+        let brand: String?
+        let servingSize: String?
+        let carbsPer100g: Double
+        let proteinPer100g: Double
+        let fatPer100g: Double
+        let caloriesPer100g: Double?
+        let servingSizeGrams: Double?
+
+        init(
+            barcode: String,
+            name: String,
+            brand: String?,
+            servingSize: String?,
+            carbsPer100g: Double,
+            proteinPer100g: Double,
+            fatPer100g: Double,
+            caloriesPer100g: Double?,
+            servingSizeGrams: Double?
+        ) {
+            id = UUID()
+            self.barcode = barcode
+            self.name = name
+            self.brand = brand
+            self.servingSize = servingSize
+            self.carbsPer100g = carbsPer100g
+            self.proteinPer100g = proteinPer100g
+            self.fatPer100g = fatPer100g
+            self.caloriesPer100g = caloriesPer100g
+            self.servingSizeGrams = servingSizeGrams
+        }
+
+        private init(
+            id: UUID,
+            barcode: String,
+            name: String,
+            brand: String?,
+            servingSize: String?,
+            carbsPer100g: Double,
+            proteinPer100g: Double,
+            fatPer100g: Double,
+            caloriesPer100g: Double?,
+            servingSizeGrams: Double?
+        ) {
+            self.id = id
+            self.barcode = barcode
+            self.name = name
+            self.brand = brand
+            self.servingSize = servingSize
+            self.carbsPer100g = carbsPer100g
+            self.proteinPer100g = proteinPer100g
+            self.fatPer100g = fatPer100g
+            self.caloriesPer100g = caloriesPer100g
+            self.servingSizeGrams = servingSizeGrams
+        }
+
+        /// Calculated nutritional values for the actual serving
+        var actualCarbs: Double {
+            guard let servingSizeGrams = servingSizeGrams else { return carbsPer100g }
+            return (carbsPer100g * servingSizeGrams) / 100.0
+        }
+
+        var actualProtein: Double {
+            guard let servingSizeGrams = servingSizeGrams else { return proteinPer100g }
+            return (proteinPer100g * servingSizeGrams) / 100.0
+        }
+
+        var actualFat: Double {
+            guard let servingSizeGrams = servingSizeGrams else { return fatPer100g }
+            return (fatPer100g * servingSizeGrams) / 100.0
+        }
+
+        var actualCalories: Double? {
+            guard let caloriesPer100g = caloriesPer100g,
+                  let servingSizeGrams = servingSizeGrams else { return caloriesPer100g }
+            return (caloriesPer100g * servingSizeGrams) / 100.0
+        }
+
+        /// Display name for the food item
+        var displayName: String {
+            if let brand = brand, !brand.isEmpty {
+                return "\(name) - \(brand)"
+            }
+            return name
+        }
+
+        /// Creates a food item with custom serving size
+        func withServingSize(_ grams: Double) -> FoodItem {
+            // Preserve the original ID to maintain identity in lists
+            FoodItem(
+                id: id,
+                barcode: barcode,
+                name: name,
+                brand: brand,
+                servingSize: "\(Int(grams))g",
+                carbsPer100g: carbsPer100g,
+                proteinPer100g: proteinPer100g,
+                fatPer100g: fatPer100g,
+                caloriesPer100g: caloriesPer100g,
+                servingSizeGrams: grams
+            )
+        }
+    }
+
+    /// Observable class to manage a collection of scanned food items for meal planning
+    @Observable class ScannedMealItems {
+        var items: [FoodItem] = []
+
+        /// Total carbohydrates from all scanned items
+        var totalCarbs: Double {
+            items.reduce(0) { $0 + $1.actualCarbs }
+        }
+
+        /// Total protein from all scanned items
+        var totalProtein: Double {
+            items.reduce(0) { $0 + $1.actualProtein }
+        }
+
+        /// Total fat from all scanned items
+        var totalFat: Double {
+            items.reduce(0) { $0 + $1.actualFat }
+        }
+
+        /// Total calories from all scanned items
+        var totalCalories: Double {
+            items.compactMap(\.actualCalories).reduce(0, +)
+        }
+
+        /// Generate a notes string for the meal
+        var notesString: String {
+            let itemNames = items.map(\.displayName)
+            return "Scanned: " + itemNames.joined(separator: ", ")
+        }
+
+        /// Add a food item to the meal
+        func addItem(_ item: FoodItem) {
+            items.append(item)
+        }
+
+        /// Remove a food item from the meal
+        func removeItem(_ item: FoodItem) {
+            items.removeAll { $0.id == item.id }
+        }
+
+        /// Clear all items from the meal
+        func clearAll() {
+            items.removeAll()
+        }
+
+        /// Check if meal has any items
+        var hasItems: Bool {
+            !items.isEmpty
+        }
+    }
+
     struct RootView: BaseView {
         enum FocusedField {
             case carbs
@@ -24,6 +184,12 @@ extension Treatments {
         @State private var calculatorDetent = PresentationDetent.large
         @State private var pushed: Bool = false
         @State private var debounce: DispatchWorkItem?
+
+        // Barcode scanner states
+        @State private var showScannedItemsSheet = false
+        @State private var showBarcodeScanner = false
+        @State private var scannedCode: String?
+        @State private var scannedMeal = ScannedMealItems()
 
         private enum Config {
             static let dividerHeight: CGFloat = 2
@@ -79,6 +245,60 @@ extension Treatments {
             }
             if let debounce = debounce {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: debounce)
+            }
+        }
+
+        /// Transfers scanned food items data to treatment fields
+        private func addScannedItemsToTreatment() {
+            // Add scanned totals to existing values
+            let currentCarbs = Double(state.carbs)
+            let currentProtein = Double(state.protein)
+            let currentFat = Double(state.fat)
+
+            state.carbs = Decimal(currentCarbs + scannedMeal.totalCarbs)
+            state.protein = Decimal(currentProtein + scannedMeal.totalProtein)
+            state.fat = Decimal(currentFat + scannedMeal.totalFat)
+
+            // Add scanned items to notes
+            let currentNote = state.note.trimmingCharacters(in: .whitespacesAndNewlines)
+            let scannedNotes = scannedMeal.notesString
+
+            if currentNote.isEmpty {
+                state.note = scannedNotes
+            } else {
+                state.note = currentNote + "; " + scannedNotes
+            }
+
+            // Clear scanned items after transfer
+            scannedMeal.clearAll()
+
+            // Update forecasts with new values
+            handleDebouncedInput()
+        }
+
+        private func lookupFood(barcode: String) async {
+            do {
+                if let foodItem = try await FoodDatabaseService.shared.lookupFood(barcode: barcode) {
+                    await MainActor.run {
+                        scannedMeal.addItem(foodItem)
+                        showScannedItemsSheet = true
+                    }
+                } else {
+                    await MainActor.run {
+                        // Handle case where product is not found
+                        // You might want to show an alert or error message here
+                        print("Product not found in database")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    // Handle error case
+                    print("Error looking up food: \(error.localizedDescription)")
+                }
+            }
+
+            await MainActor.run {
+                scannedCode = nil
             }
         }
 
@@ -248,6 +468,33 @@ extension Treatments {
                                     maxLength: 25
                                 )
                             }
+
+                            // Barcode scanner button
+                            HStack {
+                                Button(action: {
+                                    showBarcodeScanner = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "barcode.viewfinder")
+                                        Text("Scan Food Items")
+                                    }
+                                    .foregroundColor(.blue)
+                                }
+                                .buttonStyle(.borderless)
+
+                                Spacer()
+
+                                if scannedMeal.hasItems {
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("\(scannedMeal.items.count) items")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text("C: \(String(format: "%.1f", scannedMeal.totalCarbs))g")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
                         }.listRowBackground(Color.chart)
 
                         Section {
@@ -407,6 +654,25 @@ extension Treatments {
                 showPresetSheet = false
             }) {
                 MealPresetView(state: state)
+            }
+            .sheet(isPresented: $showBarcodeScanner) {
+                BarcodeScannerView(scannedCode: $scannedCode, isPresented: $showBarcodeScanner)
+            }
+            .sheet(isPresented: $showScannedItemsSheet) {
+                ScannedItemsView(
+                    scannedMeal: scannedMeal,
+                    onAddToTreatment: {
+                        addScannedItemsToTreatment()
+                        showScannedItemsSheet = false
+                    }
+                )
+            }
+            .onChange(of: scannedCode) { _, newCode in
+                if let code = newCode {
+                    Task {
+                        await lookupFood(barcode: code)
+                    }
+                }
             }
             .alert("Error while processing Treatment", isPresented: $state.showDeterminationFailureAlert) {
                 Button("OK", role: .cancel) {
