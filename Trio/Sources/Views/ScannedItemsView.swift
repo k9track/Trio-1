@@ -316,6 +316,10 @@ struct EditServingSizeView: View {
     let onSave: (Treatments.FoodItem) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var portions: Double = 1
+    @State private var gramsPerPortion: Double = 100
+    @State private var lastDelta: Double = 0
+    @State private var showDelta: Bool = false
 
     var body: some View {
         NavigationView {
@@ -325,17 +329,48 @@ struct EditServingSizeView: View {
                     .fontWeight(.medium)
                     .multilineTextAlignment(.center)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Serving Size (grams)")
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: 12) {
+                    // Portions selector (fractional, consistent with initial scan UI)
+                    HStack {
+                        Text("Portions")
+                            .font(.headline)
+                        Spacer()
+                        Stepper(value: $portions, in: 0.5 ... 50, step: 0.5) {
+                            Text(portions == floor(portions) ? "\(Int(portions))" : String(format: "%.1f", portions))
+                        }
+                        .labelsHidden()
+                        Spacer()
+                        Text("Per portion: \(Int(gramsPerPortion))g")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
 
-                    TextField("Enter serving size", text: $customServingSize)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .keyboardType(.decimalPad)
+                    // Visual feedback for +/− movements
+                    if showDelta {
+                        Text(String(format: "%+.1f portions", lastDelta))
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                            .transition(.opacity)
+                    }
                 }
 
-                if let servingGrams = Double(customServingSize) {
-                    let updatedItem = item.withServingSize(servingGrams)
+                let totalGrams = gramsPerPortion * portions
+                if totalGrams > 0 {
+                    let updatedItem = item.withServingSize(totalGrams)
+
+                    // Summary of selection
+                    HStack {
+                        Text(String(format: "Total: %.1f portions", portions))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Text("\(Int(totalGrams))g total")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
 
                     VStack(spacing: 12) {
                         Text("Nutritional Values")
@@ -368,13 +403,35 @@ struct EditServingSizeView: View {
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        if let servingGrams = Double(customServingSize) {
-                            let updatedItem = item.withServingSize(servingGrams)
-                            onSave(updatedItem)
-                        }
+                        let totalGrams = gramsPerPortion * portions
+                        let updatedItem = item.withServingSize(totalGrams)
+                        onSave(updatedItem)
                         dismiss()
                     }
-                    .disabled(Double(customServingSize) == nil)
+                    .disabled(gramsPerPortion <= 0 || portions <= 0)
+                }
+            }
+            .onAppear {
+                // Initialize grams per portion from item or provided binding (default to product's serving size)
+                let initialGrams = Double(customServingSize) ?? item.servingSizeGrams ?? 100
+                gramsPerPortion = max(1, initialGrams)
+                portions = 1
+            }
+            .onChange(of: portions) { oldValue, newValue in
+                // Normalize to nearest 0.5 to keep values stable and reversible
+                let normalized = max(0.5, min(50, round(newValue * 2) / 2))
+                if normalized != newValue {
+                    portions = normalized
+                }
+                let oldNormalized = round(oldValue * 2) / 2
+                lastDelta = normalized - oldNormalized
+                withAnimation(.easeOut(duration: 0.2)) {
+                    showDelta = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        showDelta = false
+                    }
                 }
             }
         }
