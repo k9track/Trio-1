@@ -190,6 +190,7 @@ extension Treatments {
         @State private var showBarcodeScanner = false
         @State private var scannedCode: String?
         @State private var scannedMeal = ScannedMealItems()
+        @State private var showBarcodeNotFoundAlert = false
         // Serving size editor states
         @State private var editingItem: FoodItem?
         @State private var customServingSize: String = ""
@@ -291,6 +292,9 @@ extension Treatments {
                     await MainActor.run {
                         // Handle case where product is not found
                         print("Product not found in database")
+                        // Dismiss scanner and show a user-facing alert with options
+                        showBarcodeScanner = false
+                        showBarcodeNotFoundAlert = true
                     }
                 }
             } catch {
@@ -692,6 +696,14 @@ extension Treatments {
                 }
             } message: {
                 Text("\(state.determinationFailureMessage)")
+            }
+            .alert(String(localized: "Product not found"), isPresented: $showBarcodeNotFoundAlert) {
+                Button(String(localized: "Try Again")) {
+                    showBarcodeScanner = true
+                }
+                Button(String(localized: "Cancel"), role: .cancel) {}
+            } message: {
+                Text(String(localized: "No product found for that barcode. Please try again."))
             }
         }
 

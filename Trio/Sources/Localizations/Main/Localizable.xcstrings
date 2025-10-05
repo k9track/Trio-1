@@ -147783,6 +147783,9 @@
         }
       }
     },
+    "No product found for that barcode. Please try again." : {
+
+    },
     "No recent oref algorithm determination." : {
       "localizations" : {
         "bg" : {
@@ -164912,6 +164915,9 @@
           }
         }
       }
+    },
+    "Product not found" : {
+
     },
     "profile" : {
       "localizations" : {
@@ -223510,6 +223516,9 @@
           }
         }
       }
+    },
+    "Try Again" : {
+
     },
     "Try again in a moment, or configure your Therapy Settings manually instead." : {
       "localizations" : {
