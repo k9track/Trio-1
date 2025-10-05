@@ -301,6 +301,9 @@ extension Treatments {
                 await MainActor.run {
                     // Handle error case
                     print("Error looking up food: \(error.localizedDescription)")
+                    // Treat invalid or lookup errors the same as not found for UX consistency
+                    showBarcodeScanner = false
+                    showBarcodeNotFoundAlert = true
                 }
             }
 
