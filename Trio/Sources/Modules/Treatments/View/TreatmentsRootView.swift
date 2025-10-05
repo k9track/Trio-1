@@ -717,6 +717,7 @@ extension Treatments {
             @State private var gramsPerPortion: Double = 100
             @State private var lastDelta: Double = 0
             @State private var showDelta: Bool = false
+            @State private var defaultPortion: Double?
 
             var body: some View {
                 NavigationView {
@@ -752,6 +753,39 @@ extension Treatments {
                                     .background(Color.blue.opacity(0.1))
                                     .cornerRadius(8)
                                     .transition(.opacity)
+                            }
+                            HStack(spacing: 8) {
+                                let quickOptions: [Double] = [0.5, 1.0, 1.5, 2.0]
+                                ForEach(quickOptions, id: \.self) { opt in
+                                    Button {
+                                        withAnimation(.easeOut(duration: 0.15)) {
+                                            portions = opt
+                                        }
+                                    } label: {
+                                        Text(opt == floor(opt) ? "\(Int(opt))" : String(format: "%.1f", opt))
+                                            .font(.caption)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                (abs(portions - opt) < 0.001) ? Color.blue
+                                                    .opacity(0.15) : Color(.systemGray6)
+                                            )
+                                            .cornerRadius(8)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                Spacer()
+                                if let defaultPortion, defaultPortion >= 0.5 {
+                                    Text(
+                                        "Default: " +
+                                            (
+                                                defaultPortion == floor(defaultPortion) ? "\(Int(defaultPortion))" :
+                                                    String(format: "%.1f", defaultPortion)
+                                            )
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
                             }
                         }
 
@@ -805,10 +839,38 @@ extension Treatments {
                             }
                             .disabled(gramsPerPortion <= 0 || portions <= 0)
                         }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Save & Default") {
+                                let totalGrams = gramsPerPortion * portions
+                                let updatedItem = item.withServingSize(totalGrams)
+                                let key = "defaultPortion_\(item.barcode)"
+                                UserDefaults.standard.set(portions, forKey: key)
+                                defaultPortion = portions
+                                onSave(updatedItem)
+                                dismiss()
+                            }
+                            .disabled(gramsPerPortion <= 0 || portions <= 0)
+                        }
                     }
                     .onAppear {
                         gramsPerPortion = max(1, item.servingSizeGrams ?? 100)
-                        portions = 1
+                        let key = "defaultPortion_\(item.barcode)"
+                        if let stored = UserDefaults.standard.object(forKey: key) as? Double, stored >= 0.5 {
+                            let normalized = max(0.5, min(50, round(stored * 2) / 2))
+                            portions = normalized
+                            defaultPortion = normalized
+                        } else if let number = UserDefaults.standard.object(forKey: key) as? NSNumber {
+                            let stored = number.doubleValue
+                            if stored >= 0.5 {
+                                let normalized = max(0.5, min(50, round(stored * 2) / 2))
+                                portions = normalized
+                                defaultPortion = normalized
+                            } else {
+                                portions = 1
+                            }
+                        } else {
+                            portions = 1
+                        }
                     }
                     .onChange(of: portions) { oldValue, newValue in
                         // Normalize to nearest 0.5 to keep values stable and reversible

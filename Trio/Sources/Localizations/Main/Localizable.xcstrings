@@ -175244,6 +175244,9 @@
         }
       }
     },
+    "Save & Default" : {
+
+    },
     "Save and continue" : {
       "comment" : "Save Carbs and continue to bolus recommendation",
       "extractionState" : "manual",
