@@ -1,5 +1,6 @@
 import AVFoundation
 import SwiftUI
+import UIKit
 
 struct BarcodeScannerView: UIViewControllerRepresentable {
     @Binding var scannedCode: String?
@@ -94,13 +95,13 @@ class BarcodeScannerViewController: UIViewController {
                     if granted {
                         self.setupCamera()
                     } else {
-                        self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+                        self.presentPermissionAlert()
                     }
                 }
             }
         case .denied,
              .restricted:
-            delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+            presentPermissionAlert()
         @unknown default:
             delegate?.didFailWithError(BarcodeScannerError.cameraNotAvailable)
         }
@@ -215,6 +216,28 @@ class BarcodeScannerViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer?.frame = view.layer.bounds
+    }
+
+    private func presentPermissionAlert() {
+        let alert = UIAlertController(
+            title: "Camera Access Needed",
+            message: "Enable camera access in Settings to scan barcodes.",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
+            if let url = URL(string: UIApplication.openSettingsURLString),
+               UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+            }
+            self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+        })
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
+            self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+        })
+
+        present(alert, animated: true)
     }
 }
 
