@@ -51,14 +51,14 @@ class BarcodeScannerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupCamera()
+        prepareCamera()
         setupUI()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        if !captureSession.isRunning {
+        if captureSession != nil, !captureSession.isRunning {
             DispatchQueue.global(qos: .userInitiated).async {
                 self.captureSession.startRunning()
             }
@@ -68,8 +68,41 @@ class BarcodeScannerViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
 
-        if captureSession.isRunning {
+        if captureSession != nil, captureSession.isRunning {
             captureSession.stopRunning()
+        }
+        previewLayer?.removeFromSuperlayer()
+    }
+
+    deinit {
+        if captureSession != nil, captureSession.isRunning {
+            captureSession.stopRunning()
+        }
+        previewLayer = nil
+        captureSession = nil
+    }
+
+    private func prepareCamera() {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+
+        switch status {
+        case .authorized:
+            setupCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self.setupCamera()
+                    } else {
+                        self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+                    }
+                }
+            }
+        case .denied,
+             .restricted:
+            delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+        @unknown default:
+            delegate?.didFailWithError(BarcodeScannerError.cameraNotAvailable)
         }
     }
 
@@ -204,6 +237,7 @@ enum BarcodeScannerError: LocalizedError {
     case cannotAddInput
     case cannotAddOutput
     case userCancelled
+    case permissionDenied
 
     var errorDescription: String? {
         switch self {
@@ -215,6 +249,8 @@ enum BarcodeScannerError: LocalizedError {
             return "Cannot add metadata output"
         case .userCancelled:
             return "User cancelled scanning"
+        case .permissionDenied:
+            return "Camera permission denied"
         }
     }
 }
