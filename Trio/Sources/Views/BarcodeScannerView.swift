@@ -227,7 +227,8 @@ class BarcodeScannerViewController: UIViewController {
 
         alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
             if let url = URL(string: UIApplication.openSettingsURLString),
-               UIApplication.shared.canOpenURL(url) {
+               UIApplication.shared.canOpenURL(url)
+            {
                 UIApplication.shared.open(url)
             }
             self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
