@@ -355,6 +355,18 @@ final class OpenAPS {
             preferences.sigmoid = false
         }
 
+        if preferences.enableUAMOnSchedule {
+            let hour = Calendar.current.component(.hour, from: clock)
+            let startHour = NSDecimalNumber(decimal: preferences.uamScheduleStartHour).intValue
+            let endHour = NSDecimalNumber(decimal: preferences.uamScheduleEndHour).intValue
+            if startHour != endHour {
+                let inWindow = startHour < endHour
+                    ? (hour >= startHour && hour < endHour)
+                    : (hour >= startHour || hour < endHour)
+                preferences.enableUAM = inWindow
+            }
+        }
+
         // Determine basal
         let orefDetermination = try await determineBasal(
             glucose: glucoseAsJSON,

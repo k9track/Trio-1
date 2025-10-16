@@ -232,6 +232,61 @@ extension SMBSettings {
                 )
 
                 SettingInputSection(
+                    decimalValue: $decimalPlaceholder,
+                    booleanValue: $state.enableUAMOnSchedule,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(localized: "Enable UAM On Schedule", comment: "Enable UAM On Schedule")
+                        }
+                    ),
+                    units: state.units,
+                    type: .boolean,
+                    label: String(localized: "Enable UAM On Schedule", comment: "Enable UAM On Schedule"),
+                    miniHint: String(localized: "Turn UAM on during chosen hours."),
+                    verboseHint:
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Default: OFF").bold()
+                        Text(
+                            "When enabled, Trio turns UAM on only during the selected hours each day. Set a start hour and an end hour to define the window."
+                        )
+                        Text(
+                            "If the end hour is earlier than the start hour, the schedule crosses midnight."
+                        )
+                    }
+                )
+
+                if state.enableUAMOnSchedule {
+                    Section {
+                        Picker(
+                            String(localized: "Start Hour", comment: "Start hour label"),
+                            selection: Binding<Int>(
+                                get: { NSDecimalNumber(decimal: state.uamScheduleStartHour).intValue },
+                                set: { state.uamScheduleStartHour = Decimal($0) }
+                            )
+                        ) {
+                            ForEach(0 ..< 24, id: \.self) { hour in
+                                Text(String(format: "%02d:00", hour)).tag(hour)
+                            }
+                        }
+
+                        Picker(
+                            String(localized: "End Hour", comment: "End hour label"),
+                            selection: Binding<Int>(
+                                get: { NSDecimalNumber(decimal: state.uamScheduleEndHour).intValue },
+                                set: { state.uamScheduleEndHour = Decimal($0) }
+                            )
+                        ) {
+                            ForEach(0 ..< 24, id: \.self) { hour in
+                                Text(String(format: "%02d:00", hour)).tag(hour)
+                            }
+                        }
+                    }
+                }
+
+                SettingInputSection(
                     decimalValue: $state.maxSMBBasalMinutes,
                     booleanValue: $booleanPlaceholder,
                     shouldDisplayHint: $shouldDisplayHint,

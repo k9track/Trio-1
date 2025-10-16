@@ -88881,6 +88881,9 @@
         }
       }
     },
+    "Enable UAM On Schedule" : {
+      "comment" : "Enable UAM On Schedule"
+    },
     "Enable Unannounced Meals SMB." : {
       "localizations" : {
         "bg" : {
@@ -92425,6 +92428,9 @@
           }
         }
       }
+    },
+    "End Hour" : {
+      "comment" : "End hour label"
     },
     "Enter Meal Preset Name" : {
       "extractionState" : "manual",
@@ -114874,6 +114880,9 @@
           }
         }
       }
+    },
+    "If the end hour is earlier than the start hour, the schedule crosses midnight." : {
+
     },
     "If toggled, Insulin will be added to IOB but it will not be delivered" : {
       "localizations" : {
@@ -191167,6 +191176,9 @@
         }
       }
     },
+    "Start Hour" : {
+      "comment" : "Start hour label"
+    },
     "Start new Profile" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -223732,6 +223744,9 @@
         }
       }
     },
+    "Turn UAM on during chosen hours." : {
+
+    },
     "Turning on the Sigmoid Formula setting alters how your Dynamic Ratio, and thus your New ISF, are calculated using a sigmoid curve." : {
       "localizations" : {
         "bg" : {
@@ -234842,6 +234857,9 @@
           }
         }
       }
+    },
+    "When enabled, Trio turns UAM on only during the selected hours each day. Set a start hour and an end hour to define the window." : {
+
     },
     "When enabled, Trio will create a customizable calendar event to keep you notified of your current glucose reading with every successful loop cycle." : {
       "localizations" : {
