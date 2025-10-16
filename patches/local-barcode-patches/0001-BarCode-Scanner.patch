@@ -1,0 +1,1720 @@
+From 47a73e77a42f06cf8f00db645ecf6cf4b14a3fdd Mon Sep 17 00:00:00 2001
+From: Nathan Solis <k9track@gmail.com>
+Date: Thu, 2 Oct 2025 08:51:43 -0600
+Subject: [PATCH 01/10] BarCode Scanner
+
+---
+ Trio.xcodeproj/project.pbxproj                |  12 +
+ .../xcshareddata/swiftpm/Package.resolved     | 147 ++++++-
+ Trio/Resources/Info.plist                     |   2 +
+ Trio/Resources/InfoPlist.xcstrings            |  24 ++
+ .../Localizations/Main/Localizable.xcstrings  |  70 ++-
+ .../Treatments/View/TreatmentsRootView.swift  | 266 ++++++++++++
+ .../Services/FoodDatabaseService.swift        | 142 ++++++
+ Trio/Sources/Views/BarcodeScannerView.swift   | 220 ++++++++++
+ Trio/Sources/Views/EditServingSizeView.swift  | 109 +++++
+ Trio/Sources/Views/ScannedItemsView.swift     | 404 ++++++++++++++++++
+ 10 files changed, 1394 insertions(+), 2 deletions(-)
+ create mode 100644 Trio/Sources/Services/FoodDatabaseService.swift
+ create mode 100644 Trio/Sources/Views/BarcodeScannerView.swift
+ create mode 100644 Trio/Sources/Views/EditServingSizeView.swift
+ create mode 100644 Trio/Sources/Views/ScannedItemsView.swift
+
+diff --git a/Trio.xcodeproj/project.pbxproj b/Trio.xcodeproj/project.pbxproj
+index 1beabd3e0..579a76fca 100644
+--- a/Trio.xcodeproj/project.pbxproj
++++ b/Trio.xcodeproj/project.pbxproj
+@@ -190,12 +190,15 @@
+ 		38E98A3725F5509500C0CED0 /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E98A3625F5509500C0CED0 /* String+Extensions.swift */; };
+ 		38EA05DA261F6E7C0064E39B /* SimpleLogReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EA05D9261F6E7C0064E39B /* SimpleLogReporter.swift */; };
+ 		38EA0600262091870064E39B /* BolusProgressViewStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EA05FF262091870064E39B /* BolusProgressViewStyle.swift */; };
++		38EA0603262091890064E39B /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EA0604262091890064E39B /* BarcodeScannerView.swift */; };
++		38EA0601262091880064E39B /* ScannedItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EA0602262091880064E39B /* ScannedItemsView.swift */; };
+ 		38F37828261260DC009DB701 /* Color+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F37827261260DC009DB701 /* Color+Extensions.swift */; };
+ 		38F3B2EF25ED8E2A005C48AA /* TempTargetsStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F3B2EE25ED8E2A005C48AA /* TempTargetsStorage.swift */; };
+ 		38FCF3D625E8FDF40078B0D1 /* MD5.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FCF3D525E8FDF40078B0D1 /* MD5.swift */; };
+ 		38FCF3F925E902C20078B0D1 /* FileStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FCF3F825E902C20078B0D1 /* FileStorageTests.swift */; };
+ 		38FCF3FD25E997A80078B0D1 /* PumpHistoryStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FCF3FC25E997A80078B0D1 /* PumpHistoryStorage.swift */; };
+ 		38FE826A25CC82DB001FF17A /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FE826925CC82DB001FF17A /* NetworkService.swift */; };
++		38FE826E25CC8462001FF17A /* FoodDatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FE826F25CC8462001FF17A /* FoodDatabaseService.swift */; };
+ 		38FE826D25CC8461001FF17A /* NightscoutAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FE826C25CC8461001FF17A /* NightscoutAPI.swift */; };
+ 		38FEF3FA2737E42000574A46 /* BaseStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FEF3F92737E42000574A46 /* BaseStateModel.swift */; };
+ 		38FEF3FC2737E53800574A46 /* MainStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FEF3FB2737E53800574A46 /* MainStateModel.swift */; };
+@@ -1034,6 +1037,8 @@
+ 		38E98A3625F5509500C0CED0 /* String+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Extensions.swift"; sourceTree = "<group>"; };
+ 		38EA05D9261F6E7C0064E39B /* SimpleLogReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleLogReporter.swift; sourceTree = "<group>"; };
+ 		38EA05FF262091870064E39B /* BolusProgressViewStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusProgressViewStyle.swift; sourceTree = "<group>"; };
++		38EA0604262091890064E39B /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
++		38EA0602262091880064E39B /* ScannedItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannedItemsView.swift; sourceTree = "<group>"; };
+ 		38F37827261260DC009DB701 /* Color+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Extensions.swift"; sourceTree = "<group>"; };
+ 		38F3783A2613555C009DB701 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+ 		38F3B2EE25ED8E2A005C48AA /* TempTargetsStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TempTargetsStorage.swift; sourceTree = "<group>"; };
+@@ -1043,6 +1048,7 @@
+ 		38FCF3F825E902C20078B0D1 /* FileStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileStorageTests.swift; sourceTree = "<group>"; };
+ 		38FCF3FC25E997A80078B0D1 /* PumpHistoryStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpHistoryStorage.swift; sourceTree = "<group>"; };
+ 		38FE826925CC82DB001FF17A /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
++		38FE826F25CC8462001FF17A /* FoodDatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDatabaseService.swift; sourceTree = "<group>"; };
+ 		38FE826C25CC8461001FF17A /* NightscoutAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutAPI.swift; sourceTree = "<group>"; };
+ 		38FEF3F92737E42000574A46 /* BaseStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseStateModel.swift; sourceTree = "<group>"; };
+ 		38FEF3FB2737E53800574A46 /* MainStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainStateModel.swift; sourceTree = "<group>"; };
+@@ -2038,6 +2044,7 @@
+ 				BD7DB88C2D2C49FF003D3155 /* BolusCalculator */,
+ 				3862CC2C2743F9DC00BF832C /* Calendar */,
+ 				E592A37E2CEEC046009A472C /* ContactImage */,
++				38FE826F25CC8462001FF17A /* FoodDatabaseService.swift */,
+ 				F90692A8274B7A980037068D /* HealthKit */,
+ 				3BF85FE22E427312000D7351 /* IOB */,
+ 				6B1A8D2C2B156EC100E76752 /* LiveActivity */,
+@@ -2287,6 +2294,8 @@
+ 				383420D825FFEB3F002D46C1 /* Popup.swift */,
+ 				389ECDFD2601061500D86C4F /* View+Snapshot.swift */,
+ 				38EA05FF262091870064E39B /* BolusProgressViewStyle.swift */,
++				38EA0604262091890064E39B /* BarcodeScannerView.swift */,
++				38EA0602262091880064E39B /* ScannedItemsView.swift */,
+ 				38DF1785276A73D400B3528F /* TagCloudView.swift */,
+ 				DD88C8E12C50420800F2D558 /* DefinitionRow.swift */,
+ 				DD1745282C55642100211FAC /* SettingInputSection.swift */,
+@@ -4362,6 +4371,7 @@
+ 				BDB3C1192C03DD1000CEEAA1 /* UserDefaultsExtension.swift in Sources */,
+ 				38A504A425DD9C4000C5B9E8 /* UserDefaultsExtensions.swift in Sources */,
+ 				38FE826A25CC82DB001FF17A /* NetworkService.swift in Sources */,
++				38FE826E25CC8462001FF17A /* FoodDatabaseService.swift in Sources */,
+ 				FE66D16B291F74F8005D6F77 /* Bundle+Extensions.swift in Sources */,
+ 				DD940BAC2CA75889000830A5 /* DynamicGlucoseColor.swift in Sources */,
+ 				3883581C25EE79BB00E024B2 /* TextFieldWithToolBar.swift in Sources */,
+@@ -4453,6 +4463,8 @@
+ 				582DF9792C8CE1E5001F516D /* MainChartHelper.swift in Sources */,
+ 				E06B911A275B5EEA003C04B6 /* Array+Extension.swift in Sources */,
+ 				38EA0600262091870064E39B /* BolusProgressViewStyle.swift in Sources */,
++				38EA0603262091890064E39B /* BarcodeScannerView.swift in Sources */,
++				38EA0601262091880064E39B /* ScannedItemsView.swift in Sources */,
+ 				389ECDFE2601061500D86C4F /* View+Snapshot.swift in Sources */,
+ 				38FEF3FE2738083E00574A46 /* CGMSettingsProvider.swift in Sources */,
+ 				38E98A3725F5509500C0CED0 /* String+Extensions.swift in Sources */,
+diff --git a/Trio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved b/Trio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+index 44ce21ec1..61a6e0229 100644
+--- a/Trio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
++++ b/Trio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+@@ -1,5 +1,114 @@
+ {
++  "originHash" : "19d4832d449c850d10dc8b15597db0825e41ce3f2a3b0d4b8471c7f66a7517dc",
+   "pins" : [
++    {
++      "identity" : "abseil-cpp-binary",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/abseil-cpp-binary.git",
++      "state" : {
++        "revision" : "bbe8b69694d7873315fd3a4ad41efe043e1c07c5",
++        "version" : "1.2024072200.0"
++      }
++    },
++    {
++      "identity" : "app-check",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/app-check.git",
++      "state" : {
++        "revision" : "61b85103a1aeed8218f17c794687781505fbbef5",
++        "version" : "11.2.0"
++      }
++    },
++    {
++      "identity" : "cryptoswift",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/krzyzanowskim/CryptoSwift",
++      "state" : {
++        "revision" : "e45a26384239e028ec87fbcc788f513b67e10d8f",
++        "version" : "1.9.0"
++      }
++    },
++    {
++      "identity" : "firebase-ios-sdk",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/firebase/firebase-ios-sdk.git",
++      "state" : {
++        "revision" : "fdc352fabaf5916e7faa1f96ad02b1957e93e5a5",
++        "version" : "11.15.0"
++      }
++    },
++    {
++      "identity" : "google-ads-on-device-conversion-ios-sdk",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/googleads/google-ads-on-device-conversion-ios-sdk",
++      "state" : {
++        "revision" : "a2d0f1f1666de591eb1a811f40b1706f5c63a2ed",
++        "version" : "2.3.0"
++      }
++    },
++    {
++      "identity" : "googleappmeasurement",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/GoogleAppMeasurement.git",
++      "state" : {
++        "revision" : "45ce435e9406d3c674dd249a042b932bee006f60",
++        "version" : "11.15.0"
++      }
++    },
++    {
++      "identity" : "googledatatransport",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/GoogleDataTransport.git",
++      "state" : {
++        "revision" : "617af071af9aa1d6a091d59a202910ac482128f9",
++        "version" : "10.1.0"
++      }
++    },
++    {
++      "identity" : "googleutilities",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/GoogleUtilities.git",
++      "state" : {
++        "revision" : "60da361632d0de02786f709bdc0c4df340f7613e",
++        "version" : "8.1.0"
++      }
++    },
++    {
++      "identity" : "grpc-binary",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/grpc-binary.git",
++      "state" : {
++        "revision" : "75b31c842f664a0f46a2e590a570e370249fd8f6",
++        "version" : "1.69.1"
++      }
++    },
++    {
++      "identity" : "gtm-session-fetcher",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/gtm-session-fetcher.git",
++      "state" : {
++        "revision" : "c756a29784521063b6a1202907e2cc47f41b667c",
++        "version" : "4.5.0"
++      }
++    },
++    {
++      "identity" : "interop-ios-for-google-sdks",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/interop-ios-for-google-sdks.git",
++      "state" : {
++        "revision" : "040d087ac2267d2ddd4cca36c757d1c6a05fdbfe",
++        "version" : "101.0.0"
++      }
++    },
++    {
++      "identity" : "leveldb",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/firebase/leveldb.git",
++      "state" : {
++        "revision" : "a0bc79961d7be727d258d33d5a6b2f1023270ba1",
++        "version" : "1.22.5"
++      }
++    },
+     {
+       "identity" : "mkringprogressview",
+       "kind" : "remoteSourceControl",
+@@ -9,6 +118,33 @@
+         "revision" : "660888aab1d2ab0ed7eb9eb53caec12af4955fa7"
+       }
+     },
++    {
++      "identity" : "nanopb",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/firebase/nanopb.git",
++      "state" : {
++        "revision" : "b7e1104502eca3a213b46303391ca4d3bc8ddec1",
++        "version" : "2.30910.0"
++      }
++    },
++    {
++      "identity" : "promises",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/google/promises.git",
++      "state" : {
++        "revision" : "540318ecedd63d883069ae7f1ed811a2df00b6ac",
++        "version" : "2.4.0"
++      }
++    },
++    {
++      "identity" : "slidebutton",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/no-comment/SlideButton",
++      "state" : {
++        "branch" : "main",
++        "revision" : "5eacebba4d7deeb693592bc9a62ab2d2181e133b"
++      }
++    },
+     {
+       "identity" : "swift-algorithms",
+       "kind" : "remoteSourceControl",
+@@ -27,6 +163,15 @@
+         "version" : "0.1.0"
+       }
+     },
++    {
++      "identity" : "swift-protobuf",
++      "kind" : "remoteSourceControl",
++      "location" : "https://github.com/apple/swift-protobuf.git",
++      "state" : {
++        "revision" : "2547102afd04fe49f1b286090f13ebce07284980",
++        "version" : "1.31.1"
++      }
++    },
+     {
+       "identity" : "swiftcharts",
+       "kind" : "remoteSourceControl",
+@@ -64,5 +209,5 @@
+       }
+     }
+   ],
+-  "version" : 2
++  "version" : 3
+ }
+diff --git a/Trio/Resources/Info.plist b/Trio/Resources/Info.plist
+index 6ceab61b7..212bcea8e 100644
+--- a/Trio/Resources/Info.plist
++++ b/Trio/Resources/Info.plist
+@@ -73,6 +73,8 @@
+ 	<string>Bluetooth is used to communicate with insulin pump and continuous glucose monitor devices</string>
+ 	<key>NSBluetoothPeripheralUsageDescription</key>
+ 	<string>Bluetooth is used to communicate with insulin pump and continuous glucose monitor devices</string>
++	<key>NSCameraUsageDescription</key>
++	<string>Camera is used to scan barcodes for food items to automatically calculate carbs, protein, and fat for treatments</string>
+ 	<key>NSCalendarsFullAccessUsageDescription</key>
+ 	<string>To create events with BG reading values, so that they can be viewed on Apple Watch and CarPlay</string>
+ 	<key>NSCalendarsUsageDescription</key>
+diff --git a/Trio/Resources/InfoPlist.xcstrings b/Trio/Resources/InfoPlist.xcstrings
+index 82e1dead5..0f97fab3c 100644
+--- a/Trio/Resources/InfoPlist.xcstrings
++++ b/Trio/Resources/InfoPlist.xcstrings
+@@ -457,6 +457,18 @@
+         }
+       }
+     },
++    "NSCalendarsFullAccessUsageDescription" : {
++      "comment" : "Privacy - Calendars Full Access Usage Description",
++      "extractionState" : "extracted_with_value",
++      "localizations" : {
++        "en" : {
++          "stringUnit" : {
++            "state" : "new",
++            "value" : "To create events with BG reading values, so that they can be viewed on Apple Watch and CarPlay"
++          }
++        }
++      }
++    },
+     "NSCalendarsUsageDescription" : {
+       "comment" : "Privacy - Calendars Usage Description",
+       "extractionState" : "extracted_with_value",
+@@ -601,6 +613,18 @@
+         }
+       }
+     },
++    "NSCameraUsageDescription" : {
++      "comment" : "Privacy - Camera Usage Description",
++      "extractionState" : "extracted_with_value",
++      "localizations" : {
++        "en" : {
++          "stringUnit" : {
++            "state" : "new",
++            "value" : "Camera is used to scan barcodes for food items to automatically calculate carbs, protein, and fat for treatments"
++          }
++        }
++      }
++    },
+     "NSContactsUsageDescription" : {
+       "comment" : "Privacy - Contacts Usage Description",
+       "localizations" : {
+diff --git a/Trio/Sources/Localizations/Main/Localizable.xcstrings b/Trio/Sources/Localizations/Main/Localizable.xcstrings
+index e1e40c2d6..18bc6531b 100644
+--- a/Trio/Sources/Localizations/Main/Localizable.xcstrings
++++ b/Trio/Sources/Localizations/Main/Localizable.xcstrings
+@@ -8836,6 +8836,10 @@
+         }
+       }
+     },
++    "%lld h" : {
++      "comment" : "The label for the y-axis in the glucose chart, followed by the time window duration (e.g. \"3 h\").",
++      "isCommentAutoGenerated" : true
++    },
+     "%lld hr" : {
+       "localizations" : {
+         "bg" : {
+@@ -8941,6 +8945,9 @@
+           }
+         }
+       }
++    },
++    "%lld items" : {
++
+     },
+     "%lld min" : {
+       "localizations" : {
+@@ -27022,6 +27029,10 @@
+         }
+       }
+     },
++    "Add to Treatment" : {
++      "comment" : "A button label that allows a user to add their scanned meal to a treatment.",
++      "isCommentAutoGenerated" : true
++    },
+     "Add to Treatments" : {
+       "localizations" : {
+         "bg" : {
+@@ -51208,6 +51219,9 @@
+           }
+         }
+       }
++    },
++    "C: %@g" : {
++
+     },
+     "Calculate a new Insulin Sensitivity Setting (ISF) upon every loop cycle. The new ISF will be based on your current Glucose, total daily dose of insulin (TDD, past 24 hours of all delivered insulin) and an individual Adjustment Factor (recommendation to start with is 0.5 if using Sigmoid Function and 0.8 if not).\n\nAll of the Dynamic ISF and CR adjustments will be limited by your autosens.min/max limits." : {
+       "comment" : "Enable Dynamic ISF",
+@@ -59536,6 +59550,10 @@
+         }
+       }
+     },
++    "Clear All" : {
++      "comment" : "A button that clears all items from the scanned meal.",
++      "isCommentAutoGenerated" : true
++    },
+     "Click to Snooze Alerts" : {
+       "localizations" : {
+         "bg" : {
+@@ -85501,6 +85519,10 @@
+         }
+       }
+     },
++    "Edit Serving Size" : {
++      "comment" : "The title of a view that allows users to edit the serving size of a food item.",
++      "isCommentAutoGenerated" : true
++    },
+     "Edit settings json" : {
+       "extractionState" : "manual",
+       "localizations" : {
+@@ -92732,6 +92754,10 @@
+         }
+       }
+     },
++    "Enter serving size" : {
++      "comment" : "A placeholder text in the text field for entering the serving size.",
++      "isCommentAutoGenerated" : true
++    },
+     "Enter Shared Secret" : {
+       "localizations" : {
+         "bg" : {
+@@ -129582,6 +129608,10 @@
+         }
+       }
+     },
++    "Looking up product..." : {
++      "comment" : "A message displayed while a product is being looked up.",
++      "isCommentAutoGenerated" : true
++    },
+     "Loop at %@ failed." : {
+       "localizations" : {
+         "bg" : {
+@@ -147098,6 +147128,9 @@
+           }
+         }
+       }
++    },
++    "No items scanned yet" : {
++
+     },
+     "No Libre Transmitter Selected" : {
+       "comment" : "No Libre Transmitter Selected",
+@@ -154132,6 +154165,10 @@
+         }
+       }
+     },
++    "Nutritional Values" : {
++      "comment" : "A section header that indicates the nutritional values of a food item.",
++      "isCommentAutoGenerated" : true
++    },
+     "ø" : {
+       "localizations" : {
+         "bg" : {
+@@ -176617,6 +176654,17 @@
+         }
+       }
+     },
++    "Scan Barcode" : {
++      "comment" : "A button label that prompts the user to scan a barcode.",
++      "isCommentAutoGenerated" : true
++    },
++    "Scan Food Items" : {
++
++    },
++    "Scanned Items" : {
++      "comment" : "The title of a view that lists items scanned from barcodes.",
++      "isCommentAutoGenerated" : true
++    },
+     "Schedule" : {
+       "localizations" : {
+         "bg" : {
+@@ -181319,6 +181367,14 @@
+         }
+       }
+     },
++    "Serving Size (grams)" : {
++      "comment" : "A label describing the text field for entering the serving size of a food item.",
++      "isCommentAutoGenerated" : true
++    },
++    "Serving: %@" : {
++      "comment" : "A small label below a food item's name that shows the serving size. The argument is the serving size of the food item.",
++      "isCommentAutoGenerated" : true
++    },
+     "Set a custom time for peak insulin effect." : {
+       "comment" : "Mini Hint for Insulin Peak Time",
+       "localizations" : {
+@@ -197330,6 +197386,10 @@
+         }
+       }
+     },
++    "Tap 'Scan Barcode' to add food items" : {
++      "comment" : "A description below the \"Scan Barcode\" button in the \"ScannedItemsView\". It instructs the user to scan barcodes to add food items.",
++      "isCommentAutoGenerated" : true
++    },
+     "Tap a percentile or tap and hold a bar to reveal more details. Swipe to scroll through time." : {
+ 
+     },
+@@ -217232,6 +217292,10 @@
+         }
+       }
+     },
++    "Total Calories: %lld" : {
++      "comment" : "A text element displaying the total number of calories in a scanned meal. The value is shown as an integer.",
++      "isCommentAutoGenerated" : true
++    },
+     "Total Daily Dose" : {
+       "localizations" : {
+         "bg" : {
+@@ -217989,6 +218053,10 @@
+         }
+       }
+     },
++    "Totals" : {
++      "comment" : "A section header that indicates the start of a list of nutritional totals.",
++      "isCommentAutoGenerated" : true
++    },
+     "Tracks the carbohydrates you eat, entered to guide insulin dosing." : {
+       "localizations" : {
+         "bg" : {
+@@ -240884,5 +240952,5 @@
+       }
+     }
+   },
+-  "version" : "1.0"
++  "version" : "1.1"
+ }
+\ No newline at end of file
+diff --git a/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift b/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
+index 443510783..adfad34ba 100644
+--- a/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
++++ b/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
+@@ -1,10 +1,170 @@
+ import Charts
+ import CoreData
+ import LoopKitUI
++import Observation
+ import SwiftUI
+ import Swinject
+ 
+ extension Treatments {
++    /// Represents a food item scanned via barcode with nutritional information
++    struct FoodItem: Identifiable, Codable, Hashable {
++        let id: UUID
++        let barcode: String
++        let name: String
++        let brand: String?
++        let servingSize: String?
++        let carbsPer100g: Double
++        let proteinPer100g: Double
++        let fatPer100g: Double
++        let caloriesPer100g: Double?
++        let servingSizeGrams: Double?
++
++        init(
++            barcode: String,
++            name: String,
++            brand: String?,
++            servingSize: String?,
++            carbsPer100g: Double,
++            proteinPer100g: Double,
++            fatPer100g: Double,
++            caloriesPer100g: Double?,
++            servingSizeGrams: Double?
++        ) {
++            id = UUID()
++            self.barcode = barcode
++            self.name = name
++            self.brand = brand
++            self.servingSize = servingSize
++            self.carbsPer100g = carbsPer100g
++            self.proteinPer100g = proteinPer100g
++            self.fatPer100g = fatPer100g
++            self.caloriesPer100g = caloriesPer100g
++            self.servingSizeGrams = servingSizeGrams
++        }
++
++        private init(
++            id: UUID,
++            barcode: String,
++            name: String,
++            brand: String?,
++            servingSize: String?,
++            carbsPer100g: Double,
++            proteinPer100g: Double,
++            fatPer100g: Double,
++            caloriesPer100g: Double?,
++            servingSizeGrams: Double?
++        ) {
++            self.id = id
++            self.barcode = barcode
++            self.name = name
++            self.brand = brand
++            self.servingSize = servingSize
++            self.carbsPer100g = carbsPer100g
++            self.proteinPer100g = proteinPer100g
++            self.fatPer100g = fatPer100g
++            self.caloriesPer100g = caloriesPer100g
++            self.servingSizeGrams = servingSizeGrams
++        }
++
++        /// Calculated nutritional values for the actual serving
++        var actualCarbs: Double {
++            guard let servingSizeGrams = servingSizeGrams else { return carbsPer100g }
++            return (carbsPer100g * servingSizeGrams) / 100.0
++        }
++
++        var actualProtein: Double {
++            guard let servingSizeGrams = servingSizeGrams else { return proteinPer100g }
++            return (proteinPer100g * servingSizeGrams) / 100.0
++        }
++
++        var actualFat: Double {
++            guard let servingSizeGrams = servingSizeGrams else { return fatPer100g }
++            return (fatPer100g * servingSizeGrams) / 100.0
++        }
++
++        var actualCalories: Double? {
++            guard let caloriesPer100g = caloriesPer100g,
++                  let servingSizeGrams = servingSizeGrams else { return caloriesPer100g }
++            return (caloriesPer100g * servingSizeGrams) / 100.0
++        }
++
++        /// Display name for the food item
++        var displayName: String {
++            if let brand = brand, !brand.isEmpty {
++                return "\(name) - \(brand)"
++            }
++            return name
++        }
++
++        /// Creates a food item with custom serving size
++        func withServingSize(_ grams: Double) -> FoodItem {
++            // Preserve the original ID to maintain identity in lists
++            FoodItem(
++                id: id,
++                barcode: barcode,
++                name: name,
++                brand: brand,
++                servingSize: "\(Int(grams))g",
++                carbsPer100g: carbsPer100g,
++                proteinPer100g: proteinPer100g,
++                fatPer100g: fatPer100g,
++                caloriesPer100g: caloriesPer100g,
++                servingSizeGrams: grams
++            )
++        }
++    }
++
++    /// Observable class to manage a collection of scanned food items for meal planning
++    @Observable class ScannedMealItems {
++        var items: [FoodItem] = []
++
++        /// Total carbohydrates from all scanned items
++        var totalCarbs: Double {
++            items.reduce(0) { $0 + $1.actualCarbs }
++        }
++
++        /// Total protein from all scanned items
++        var totalProtein: Double {
++            items.reduce(0) { $0 + $1.actualProtein }
++        }
++
++        /// Total fat from all scanned items
++        var totalFat: Double {
++            items.reduce(0) { $0 + $1.actualFat }
++        }
++
++        /// Total calories from all scanned items
++        var totalCalories: Double {
++            items.compactMap(\.actualCalories).reduce(0, +)
++        }
++
++        /// Generate a notes string for the meal
++        var notesString: String {
++            let itemNames = items.map(\.displayName)
++            return "Scanned: " + itemNames.joined(separator: ", ")
++        }
++
++        /// Add a food item to the meal
++        func addItem(_ item: FoodItem) {
++            items.append(item)
++        }
++
++        /// Remove a food item from the meal
++        func removeItem(_ item: FoodItem) {
++            items.removeAll { $0.id == item.id }
++        }
++
++        /// Clear all items from the meal
++        func clearAll() {
++            items.removeAll()
++        }
++
++        /// Check if meal has any items
++        var hasItems: Bool {
++            !items.isEmpty
++        }
++    }
++
+     struct RootView: BaseView {
+         enum FocusedField {
+             case carbs
+@@ -25,6 +185,12 @@ extension Treatments {
+         @State private var pushed: Bool = false
+         @State private var debounce: DispatchWorkItem?
+ 
++        // Barcode scanner states
++        @State private var showScannedItemsSheet = false
++        @State private var showBarcodeScanner = false
++        @State private var scannedCode: String?
++        @State private var scannedMeal = ScannedMealItems()
++
+         private enum Config {
+             static let dividerHeight: CGFloat = 2
+             static let spacing: CGFloat = 3
+@@ -82,6 +248,60 @@ extension Treatments {
+             }
+         }
+ 
++        /// Transfers scanned food items data to treatment fields
++        private func addScannedItemsToTreatment() {
++            // Add scanned totals to existing values
++            let currentCarbs = Double(state.carbs)
++            let currentProtein = Double(state.protein)
++            let currentFat = Double(state.fat)
++
++            state.carbs = Decimal(currentCarbs + scannedMeal.totalCarbs)
++            state.protein = Decimal(currentProtein + scannedMeal.totalProtein)
++            state.fat = Decimal(currentFat + scannedMeal.totalFat)
++
++            // Add scanned items to notes
++            let currentNote = state.note.trimmingCharacters(in: .whitespacesAndNewlines)
++            let scannedNotes = scannedMeal.notesString
++
++            if currentNote.isEmpty {
++                state.note = scannedNotes
++            } else {
++                state.note = currentNote + "; " + scannedNotes
++            }
++
++            // Clear scanned items after transfer
++            scannedMeal.clearAll()
++
++            // Update forecasts with new values
++            handleDebouncedInput()
++        }
++
++        private func lookupFood(barcode: String) async {
++            do {
++                if let foodItem = try await FoodDatabaseService.shared.lookupFood(barcode: barcode) {
++                    await MainActor.run {
++                        scannedMeal.addItem(foodItem)
++                        showScannedItemsSheet = true
++                    }
++                } else {
++                    await MainActor.run {
++                        // Handle case where product is not found
++                        // You might want to show an alert or error message here
++                        print("Product not found in database")
++                    }
++                }
++            } catch {
++                await MainActor.run {
++                    // Handle error case
++                    print("Error looking up food: \(error.localizedDescription)")
++                }
++            }
++
++            await MainActor.run {
++                scannedCode = nil
++            }
++        }
++
+         @ViewBuilder private func proteinAndFat() -> some View {
+             HStack {
+                 HStack {
+@@ -248,6 +468,33 @@ extension Treatments {
+                                     maxLength: 25
+                                 )
+                             }
++
++                            // Barcode scanner button
++                            HStack {
++                                Button(action: {
++                                    showBarcodeScanner = true
++                                }) {
++                                    HStack {
++                                        Image(systemName: "barcode.viewfinder")
++                                        Text("Scan Food Items")
++                                    }
++                                    .foregroundColor(.blue)
++                                }
++                                .buttonStyle(.borderless)
++
++                                Spacer()
++
++                                if scannedMeal.hasItems {
++                                    VStack(alignment: .trailing, spacing: 2) {
++                                        Text("\(scannedMeal.items.count) items")
++                                            .font(.caption)
++                                            .foregroundColor(.secondary)
++                                        Text("C: \(String(format: "%.1f", scannedMeal.totalCarbs))g")
++                                            .font(.caption2)
++                                            .foregroundColor(.secondary)
++                                    }
++                                }
++                            }
+                         }.listRowBackground(Color.chart)
+ 
+                         Section {
+@@ -408,6 +655,25 @@ extension Treatments {
+             }) {
+                 MealPresetView(state: state)
+             }
++            .sheet(isPresented: $showBarcodeScanner) {
++                BarcodeScannerView(scannedCode: $scannedCode, isPresented: $showBarcodeScanner)
++            }
++            .sheet(isPresented: $showScannedItemsSheet) {
++                ScannedItemsView(
++                    scannedMeal: scannedMeal,
++                    onAddToTreatment: {
++                        addScannedItemsToTreatment()
++                        showScannedItemsSheet = false
++                    }
++                )
++            }
++            .onChange(of: scannedCode) { _, newCode in
++                if let code = newCode {
++                    Task {
++                        await lookupFood(barcode: code)
++                    }
++                }
++            }
+             .alert("Error while processing Treatment", isPresented: $state.showDeterminationFailureAlert) {
+                 Button("OK", role: .cancel) {
+                     state.hideModal()
+diff --git a/Trio/Sources/Services/FoodDatabaseService.swift b/Trio/Sources/Services/FoodDatabaseService.swift
+new file mode 100644
+index 000000000..5497d6f73
+--- /dev/null
++++ b/Trio/Sources/Services/FoodDatabaseService.swift
+@@ -0,0 +1,142 @@
++import Foundation
++
++/// Service for looking up food nutritional information from barcodes
++class FoodDatabaseService {
++    static let shared = FoodDatabaseService()
++
++    private init() {}
++
++    /// Lookup food item by barcode using OpenFoodFacts API
++    func lookupFood(barcode: String) async throws -> Treatments.FoodItem? {
++        guard !barcode.isEmpty else {
++            throw FoodDatabaseError.invalidBarcode
++        }
++
++        let urlString = "https://world.openfoodfacts.org/api/v0/product/\(barcode).json"
++        guard let url = URL(string: urlString) else {
++            throw FoodDatabaseError.invalidURL
++        }
++
++        let (data, response) = try await URLSession.shared.data(from: url)
++
++        guard let httpResponse = response as? HTTPURLResponse,
++              httpResponse.statusCode == 200
++        else {
++            throw FoodDatabaseError.networkError
++        }
++
++        let openFoodFactsResponse = try JSONDecoder().decode(OpenFoodFactsResponse.self, from: data)
++
++        guard openFoodFactsResponse.status == 1,
++              let product = openFoodFactsResponse.product
++        else {
++            throw FoodDatabaseError.productNotFound
++        }
++
++        return try convertToFoodItem(product: product, barcode: barcode)
++    }
++
++    private func convertToFoodItem(product: OpenFoodFactsProduct, barcode: String) throws -> Treatments.FoodItem {
++        guard let nutriments = product.nutriments else {
++            throw FoodDatabaseError.missingNutritionData
++        }
++
++        let name = product.product_name ?? product.product_name_en ?? "Unknown Product"
++        let brand = product.brands?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces)
++
++        // Convert nutrients per 100g (OpenFoodFacts standard)
++        let carbs = nutriments.carbohydrates_100g ?? 0.0
++        let protein = nutriments.proteins_100g ?? 0.0
++        let fat = nutriments.fat_100g ?? 0.0
++        let calories = nutriments.energy_kcal_100g
++
++        // Try to get serving size from the product
++        let servingSize = product.serving_size
++        let servingSizeGrams = parseServingSize(servingSize)
++
++        return Treatments.FoodItem(
++            barcode: barcode,
++            name: name,
++            brand: brand,
++            servingSize: servingSize,
++            carbsPer100g: carbs,
++            proteinPer100g: protein,
++            fatPer100g: fat,
++            caloriesPer100g: calories,
++            servingSizeGrams: servingSizeGrams
++        )
++    }
++
++    private func parseServingSize(_ servingSize: String?) -> Double? {
++        guard let servingSize = servingSize else { return nil }
++
++        // Try to extract grams from serving size string
++        let pattern = #"(\d+(?:\.\d+)?)\s*g"#
++        let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
++        let range = NSRange(location: 0, length: servingSize.utf16.count)
++
++        if let match = regex?.firstMatch(in: servingSize, options: [], range: range),
++           let gramsRange = Range(match.range(at: 1), in: servingSize)
++        {
++            return Double(servingSize[gramsRange])
++        }
++
++        return nil
++    }
++}
++
++// MARK: - OpenFoodFacts API Models
++
++struct OpenFoodFactsResponse: Codable {
++    let status: Int
++    let product: OpenFoodFactsProduct?
++}
++
++struct OpenFoodFactsProduct: Codable {
++    let product_name: String?
++    let product_name_en: String?
++    let brands: String?
++    let serving_size: String?
++    let nutriments: OpenFoodFactsNutriments?
++}
++
++struct OpenFoodFactsNutriments: Codable {
++    let carbohydrates_100g: Double?
++    let proteins_100g: Double?
++    let fat_100g: Double?
++    let energy_kcal_100g: Double?
++
++    // Alternative field names that might be present
++    let carbohydrates: Double?
++    let proteins: Double?
++    let fat: Double?
++    let energy_kcal: Double?
++}
++
++// MARK: - Errors
++
++enum FoodDatabaseError: LocalizedError {
++    case invalidBarcode
++    case invalidURL
++    case networkError
++    case productNotFound
++    case missingNutritionData
++    case decodingError
++
++    var errorDescription: String? {
++        switch self {
++        case .invalidBarcode:
++            return "Invalid barcode format"
++        case .invalidURL:
++            return "Invalid API URL"
++        case .networkError:
++            return "Network error occurred"
++        case .productNotFound:
++            return "Product not found in database"
++        case .missingNutritionData:
++            return "Nutrition data not available for this product"
++        case .decodingError:
++            return "Failed to decode product data"
++        }
++    }
++}
+diff --git a/Trio/Sources/Views/BarcodeScannerView.swift b/Trio/Sources/Views/BarcodeScannerView.swift
+new file mode 100644
+index 000000000..2a208e13b
+--- /dev/null
++++ b/Trio/Sources/Views/BarcodeScannerView.swift
+@@ -0,0 +1,220 @@
++import AVFoundation
++import SwiftUI
++
++struct BarcodeScannerView: UIViewControllerRepresentable {
++    @Binding var scannedCode: String?
++    @Binding var isPresented: Bool
++
++    func makeUIViewController(context: Context) -> BarcodeScannerViewController {
++        let controller = BarcodeScannerViewController()
++        controller.delegate = context.coordinator
++        return controller
++    }
++
++    func updateUIViewController(_: BarcodeScannerViewController, context _: Context) {}
++
++    func makeCoordinator() -> Coordinator {
++        Coordinator(self)
++    }
++
++    class Coordinator: NSObject, BarcodeScannerDelegate {
++        let parent: BarcodeScannerView
++
++        init(_ parent: BarcodeScannerView) {
++            self.parent = parent
++        }
++
++        func didScanBarcode(_ code: String) {
++            parent.scannedCode = code
++            parent.isPresented = false
++        }
++
++        func didFailWithError(_ error: Error) {
++            print("Barcode scanning failed: \(error.localizedDescription)")
++            parent.isPresented = false
++        }
++    }
++}
++
++protocol BarcodeScannerDelegate: AnyObject {
++    func didScanBarcode(_ code: String)
++    func didFailWithError(_ error: Error)
++}
++
++class BarcodeScannerViewController: UIViewController {
++    weak var delegate: BarcodeScannerDelegate?
++
++    private var captureSession: AVCaptureSession!
++    private var previewLayer: AVCaptureVideoPreviewLayer!
++    private var scanningView: UIView!
++    private var instructionLabel: UILabel!
++
++    override func viewDidLoad() {
++        super.viewDidLoad()
++        setupCamera()
++        setupUI()
++    }
++
++    override func viewWillAppear(_ animated: Bool) {
++        super.viewWillAppear(animated)
++
++        if !captureSession.isRunning {
++            DispatchQueue.global(qos: .userInitiated).async {
++                self.captureSession.startRunning()
++            }
++        }
++    }
++
++    override func viewWillDisappear(_ animated: Bool) {
++        super.viewWillDisappear(animated)
++
++        if captureSession.isRunning {
++            captureSession.stopRunning()
++        }
++    }
++
++    private func setupCamera() {
++        captureSession = AVCaptureSession()
++
++        guard let videoCaptureDevice = AVCaptureDevice.default(for: .video) else {
++            delegate?.didFailWithError(BarcodeScannerError.cameraNotAvailable)
++            return
++        }
++
++        let videoInput: AVCaptureDeviceInput
++
++        do {
++            videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
++        } catch {
++            delegate?.didFailWithError(error)
++            return
++        }
++
++        if captureSession.canAddInput(videoInput) {
++            captureSession.addInput(videoInput)
++        } else {
++            delegate?.didFailWithError(BarcodeScannerError.cannotAddInput)
++            return
++        }
++
++        let metadataOutput = AVCaptureMetadataOutput()
++
++        if captureSession.canAddOutput(metadataOutput) {
++            captureSession.addOutput(metadataOutput)
++
++            metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
++            metadataOutput.metadataObjectTypes = [
++                .ean8, .ean13, .pdf417, .qr, .code128, .code39, .code93,
++                .upce, .aztec, .dataMatrix, .interleaved2of5, .itf14
++            ]
++        } else {
++            delegate?.didFailWithError(BarcodeScannerError.cannotAddOutput)
++            return
++        }
++
++        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
++        previewLayer.frame = view.layer.bounds
++        previewLayer.videoGravity = .resizeAspectFill
++        view.layer.addSublayer(previewLayer)
++    }
++
++    private func setupUI() {
++        view.backgroundColor = UIColor.black
++
++        // Create scanning area overlay
++        scanningView = UIView()
++        scanningView.layer.borderColor = UIColor.systemBlue.cgColor
++        scanningView.layer.borderWidth = 2
++        scanningView.layer.cornerRadius = 8
++        scanningView.backgroundColor = UIColor.clear
++        scanningView.translatesAutoresizingMaskIntoConstraints = false
++        view.addSubview(scanningView)
++
++        // Create instruction label
++        instructionLabel = UILabel()
++        instructionLabel.text = "Position barcode within the frame"
++        instructionLabel.textColor = UIColor.white
++        instructionLabel.textAlignment = .center
++        instructionLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
++        instructionLabel.backgroundColor = UIColor.black.withAlphaComponent(0.7)
++        instructionLabel.layer.cornerRadius = 8
++        instructionLabel.layer.masksToBounds = true
++        instructionLabel.translatesAutoresizingMaskIntoConstraints = false
++        view.addSubview(instructionLabel)
++
++        // Create close button
++        let closeButton = UIButton(type: .system)
++        closeButton.setTitle("Close", for: .normal)
++        closeButton.setTitleColor(.white, for: .normal)
++        closeButton.backgroundColor = UIColor.black.withAlphaComponent(0.7)
++        closeButton.layer.cornerRadius = 8
++        closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
++        closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
++        closeButton.translatesAutoresizingMaskIntoConstraints = false
++        view.addSubview(closeButton)
++
++        // Setup constraints
++        NSLayoutConstraint.activate([
++            // Scanning area
++            scanningView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
++            scanningView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
++            scanningView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
++            scanningView.heightAnchor.constraint(equalTo: scanningView.widthAnchor, multiplier: 0.6),
++
++            // Instruction label
++            instructionLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
++            instructionLabel.topAnchor.constraint(equalTo: scanningView.bottomAnchor, constant: 20),
++            instructionLabel.widthAnchor.constraint(equalTo: scanningView.widthAnchor),
++            instructionLabel.heightAnchor.constraint(equalToConstant: 40),
++
++            // Close button
++            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
++            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
++            closeButton.widthAnchor.constraint(equalToConstant: 80),
++            closeButton.heightAnchor.constraint(equalToConstant: 40)
++        ])
++    }
++
++    @objc private func closeButtonTapped() {
++        delegate?.didFailWithError(BarcodeScannerError.userCancelled)
++    }
++
++    override func viewDidLayoutSubviews() {
++        super.viewDidLayoutSubviews()
++        previewLayer?.frame = view.layer.bounds
++    }
++}
++
++extension BarcodeScannerViewController: AVCaptureMetadataOutputObjectsDelegate {
++    func metadataOutput(_: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from _: AVCaptureConnection) {
++        captureSession.stopRunning()
++
++        if let metadataObject = metadataObjects.first {
++            guard let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject else { return }
++            guard let stringValue = readableObject.stringValue else { return }
++
++            AudioServicesPlaySystemSound(SystemSoundID(kSystemSoundID_Vibrate))
++            delegate?.didScanBarcode(stringValue)
++        }
++    }
++}
++
++enum BarcodeScannerError: LocalizedError {
++    case cameraNotAvailable
++    case cannotAddInput
++    case cannotAddOutput
++    case userCancelled
++
++    var errorDescription: String? {
++        switch self {
++        case .cameraNotAvailable:
++            return "Camera not available"
++        case .cannotAddInput:
++            return "Cannot add camera input"
++        case .cannotAddOutput:
++            return "Cannot add metadata output"
++        case .userCancelled:
++            return "User cancelled scanning"
++        }
++    }
++}
+diff --git a/Trio/Sources/Views/EditServingSizeView.swift b/Trio/Sources/Views/EditServingSizeView.swift
+new file mode 100644
+index 000000000..4b93f96ec
+--- /dev/null
++++ b/Trio/Sources/Views/EditServingSizeView.swift
+@@ -0,0 +1,109 @@
++import SwiftUI
++
++struct EditServingSizeView: View {
++    @Binding var foodItem: FoodItem
++    @Environment(\.dismiss) private var dismiss
++
++    @State private var servingSizeText: String = ""
++
++    var body: some View {
++        NavigationView {
++            VStack(spacing: 20) {
++                VStack(alignment: .leading, spacing: 8) {
++                    Text("Food Item")
++                        .font(.headline)
++                    Text(foodItem.displayName)
++                        .font(.subheadline)
++                        .foregroundColor(.secondary)
++                }
++                .frame(maxWidth: .infinity, alignment: .leading)
++
++                VStack(alignment: .leading, spacing: 8) {
++                    Text("Serving Size (grams)")
++                        .font(.headline)
++
++                    TextField("Enter serving size", text: $servingSizeText)
++                        .textFieldStyle(RoundedBorderTextFieldStyle())
++                        .keyboardType(.decimalPad)
++                }
++                .frame(maxWidth: .infinity, alignment: .leading)
++
++                VStack(alignment: .leading, spacing: 4) {
++                    Text("Nutritional Information")
++                        .font(.headline)
++
++                    let servingSize = Double(servingSizeText) ?? foodItem.servingSizeGrams
++                    let tempItem = foodItem.withServingSize(servingSize)
++
++                    HStack {
++                        Text("Carbs:")
++                        Spacer()
++                        Text("\(tempItem.actualCarbs, specifier: "%.1f")g")
++                    }
++
++                    HStack {
++                        Text("Protein:")
++                        Spacer()
++                        Text("\(tempItem.actualProtein, specifier: "%.1f")g")
++                    }
++
++                    HStack {
++                        Text("Fat:")
++                        Spacer()
++                        Text("\(tempItem.actualFat, specifier: "%.1f")g")
++                    }
++
++                    HStack {
++                        Text("Calories:")
++                        Spacer()
++                        Text("\(tempItem.actualCalories, specifier: "%.0f")")
++                    }
++                }
++                .padding()
++                .background(Color(.systemGray6))
++                .cornerRadius(8)
++
++                Spacer()
++            }
++            .padding()
++            .navigationTitle("Edit Serving Size")
++            .navigationBarTitleDisplayMode(.inline)
++            .toolbar {
++                ToolbarItem(placement: .navigationBarLeading) {
++                    Button("Cancel") {
++                        dismiss()
++                    }
++                }
++
++                ToolbarItem(placement: .navigationBarTrailing) {
++                    Button("Save") {
++                        if let newServingSize = Double(servingSizeText) {
++                            foodItem = foodItem.withServingSize(newServingSize)
++                        }
++                        dismiss()
++                    }
++                    .disabled(servingSizeText.isEmpty || Double(servingSizeText) == nil)
++                }
++            }
++        }
++        .onAppear {
++            servingSizeText = String(format: "%.0f", foodItem.servingSizeGrams)
++        }
++    }
++}
++
++#Preview {
++    @State var sampleItem = Treatments.FoodItem(
++        barcode: "123456789",
++        name: "Sample Food",
++        brand: "Sample Brand",
++        servingSize: "100g",
++        carbsPer100g: 25.0,
++        proteinPer100g: 10.0,
++        fatPer100g: 5.0,
++        caloriesPer100g: 180,
++        servingSizeGrams: 100
++    )
++
++    return EditServingSizeView(foodItem: $sampleItem)
++}
+diff --git a/Trio/Sources/Views/ScannedItemsView.swift b/Trio/Sources/Views/ScannedItemsView.swift
+new file mode 100644
+index 000000000..f43ada595
+--- /dev/null
++++ b/Trio/Sources/Views/ScannedItemsView.swift
+@@ -0,0 +1,404 @@
++import SwiftUI
++
++struct ScannedItemsView: View {
++    @Bindable var scannedMeal: Treatments.ScannedMealItems
++    @State private var showingScanner = false
++    @State private var scannedCode: String?
++    @State private var isLoading = false
++    @State private var errorMessage: String?
++    @State private var showingError = false
++    @State private var editingItem: Treatments.FoodItem?
++    @State private var customServingSize: String = ""
++
++    let onAddToTreatment: () -> Void
++
++    private var numberFormatter: NumberFormatter {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }
++
++    var body: some View {
++        NavigationView {
++            VStack(spacing: 0) {
++                // Header with scan button
++                headerView
++
++                if scannedMeal.hasItems {
++                    // Items list
++                    itemsList
++
++                    // Totals section
++                    totalsSection
++
++                    // Add to treatment button
++                    addToTreatmentButton
++                } else {
++                    // Empty state
++                    emptyStateView
++                }
++            }
++            .navigationTitle("Scanned Items")
++            .navigationBarTitleDisplayMode(.inline)
++            .sheet(isPresented: $showingScanner) {
++                BarcodeScannerView(scannedCode: $scannedCode, isPresented: $showingScanner)
++            }
++            .sheet(item: $editingItem) { item in
++                EditServingSizeView(
++                    item: item,
++                    customServingSize: $customServingSize,
++                    onSave: { updatedItem in
++                        updateItemServingSize(updatedItem)
++                    }
++                )
++            }
++            .alert("Error", isPresented: $showingError) {
++                Button("OK") {}
++            } message: {
++                Text(errorMessage ?? "Unknown error occurred")
++            }
++            .onChange(of: scannedCode) { _, newCode in
++                if let code = newCode {
++                    Task {
++                        await lookupFood(barcode: code)
++                    }
++                }
++            }
++            .overlay {
++                if isLoading {
++                    LoadingOverlay()
++                }
++            }
++        }
++    }
++
++    private var headerView: some View {
++        HStack {
++            Button(action: {
++                showingScanner = true
++            }) {
++                HStack {
++                    Image(systemName: "barcode.viewfinder")
++                    Text("Scan Barcode")
++                }
++                .foregroundColor(.white)
++                .padding()
++                .background(Color.blue)
++                .cornerRadius(10)
++            }
++
++            Spacer()
++
++            if scannedMeal.hasItems {
++                Button("Clear All") {
++                    scannedMeal.clearAll()
++                }
++                .foregroundColor(.red)
++            }
++        }
++        .padding()
++    }
++
++    private var itemsList: some View {
++        List {
++            ForEach(scannedMeal.items) { item in
++                FoodItemRow(item: item)
++                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
++                        Button(role: .destructive) {
++                            scannedMeal.removeItem(item)
++                        } label: {
++                            Label("Delete", systemImage: "trash")
++                        }
++                    }
++                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
++                        Button {
++                            editingItem = item
++                            customServingSize = String(item.servingSizeGrams ?? 100)
++                        } label: {
++                            Label("Edit", systemImage: "pencil")
++                        }
++                        .tint(.blue)
++                    }
++            }
++        }
++        .listStyle(PlainListStyle())
++    }
++
++    private var totalsSection: some View {
++        VStack(spacing: 8) {
++            Text("Totals")
++                .font(.headline)
++                .padding(.top)
++
++            HStack {
++                NutrientTotal(label: "Carbs", value: scannedMeal.totalCarbs, unit: "g")
++                Spacer()
++                NutrientTotal(label: "Protein", value: scannedMeal.totalProtein, unit: "g")
++                Spacer()
++                NutrientTotal(label: "Fat", value: scannedMeal.totalFat, unit: "g")
++            }
++            .padding(.horizontal)
++
++            if scannedMeal.totalCalories > 0 {
++                Text("Total Calories: \(Int(scannedMeal.totalCalories))")
++                    .font(.subheadline)
++                    .foregroundColor(.secondary)
++            }
++        }
++        .padding()
++        .background(Color(.systemGray6))
++        .cornerRadius(10)
++        .padding(.horizontal)
++    }
++
++    private var addToTreatmentButton: some View {
++        Button(action: onAddToTreatment) {
++            Text("Add to Treatment")
++                .font(.headline)
++                .foregroundColor(.white)
++                .frame(maxWidth: .infinity)
++                .padding()
++                .background(Color.green)
++                .cornerRadius(10)
++        }
++        .padding()
++    }
++
++    private var emptyStateView: some View {
++        VStack(spacing: 20) {
++            Spacer()
++
++            Image(systemName: "barcode")
++                .font(.system(size: 60))
++                .foregroundColor(.gray)
++
++            Text("No items scanned yet")
++                .font(.title2)
++                .foregroundColor(.secondary)
++
++            Text("Tap 'Scan Barcode' to add food items")
++                .font(.body)
++                .foregroundColor(.secondary)
++                .multilineTextAlignment(.center)
++
++            Spacer()
++        }
++        .padding()
++    }
++
++    private func lookupFood(barcode: String) async {
++        isLoading = true
++        errorMessage = nil
++
++        do {
++            if let foodItem = try await FoodDatabaseService.shared.lookupFood(barcode: barcode) {
++                await MainActor.run {
++                    scannedMeal.addItem(foodItem)
++                }
++            } else {
++                await MainActor.run {
++                    errorMessage = "Product not found in database"
++                    showingError = true
++                }
++            }
++        } catch {
++            await MainActor.run {
++                errorMessage = error.localizedDescription
++                showingError = true
++            }
++        }
++
++        await MainActor.run {
++            isLoading = false
++            scannedCode = nil
++        }
++    }
++
++    private func updateItemServingSize(_ updatedItem: Treatments.FoodItem) {
++        if let index = scannedMeal.items.firstIndex(where: { $0.id == updatedItem.id }) {
++            scannedMeal.items[index] = updatedItem
++        }
++    }
++}
++
++struct FoodItemRow: View {
++    let item: Treatments.FoodItem
++
++    private var numberFormatter: NumberFormatter {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }
++
++    var body: some View {
++        VStack(alignment: .leading, spacing: 4) {
++            HStack {
++                VStack(alignment: .leading, spacing: 2) {
++                    Text(item.displayName)
++                        .font(.headline)
++                        .lineLimit(2)
++
++                    if let servingSize = item.servingSize {
++                        Text("Serving: \(servingSize)")
++                            .font(.caption)
++                            .foregroundColor(.secondary)
++                    }
++                }
++
++                Spacer()
++            }
++
++            HStack(spacing: 16) {
++                NutrientValue(label: "C", value: item.actualCarbs)
++                NutrientValue(label: "P", value: item.actualProtein)
++                NutrientValue(label: "F", value: item.actualFat)
++
++                Spacer()
++            }
++        }
++        .padding(.vertical, 4)
++    }
++}
++
++struct NutrientValue: View {
++    let label: String
++    let value: Double
++
++    private var numberFormatter: NumberFormatter {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }
++
++    var body: some View {
++        VStack(spacing: 2) {
++            Text(label)
++                .font(.caption2)
++                .foregroundColor(.secondary)
++            Text(numberFormatter.string(from: NSNumber(value: value)) ?? "0")
++                .font(.caption)
++                .fontWeight(.medium)
++        }
++    }
++}
++
++struct NutrientTotal: View {
++    let label: String
++    let value: Double
++    let unit: String
++
++    private var numberFormatter: NumberFormatter {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }
++
++    var body: some View {
++        VStack(spacing: 4) {
++            Text(label)
++                .font(.subheadline)
++                .fontWeight(.medium)
++            Text("\(numberFormatter.string(from: NSNumber(value: value)) ?? "0") \(unit)")
++                .font(.title3)
++                .fontWeight(.bold)
++                .foregroundColor(.primary)
++        }
++    }
++}
++
++struct EditServingSizeView: View {
++    let item: Treatments.FoodItem
++    @Binding var customServingSize: String
++    let onSave: (Treatments.FoodItem) -> Void
++
++    @Environment(\.dismiss) private var dismiss
++
++    var body: some View {
++        NavigationView {
++            VStack(spacing: 20) {
++                Text(item.displayName)
++                    .font(.title2)
++                    .fontWeight(.medium)
++                    .multilineTextAlignment(.center)
++
++                VStack(alignment: .leading, spacing: 8) {
++                    Text("Serving Size (grams)")
++                        .font(.headline)
++
++                    TextField("Enter serving size", text: $customServingSize)
++                        .textFieldStyle(RoundedBorderTextFieldStyle())
++                        .keyboardType(.decimalPad)
++                }
++
++                if let servingGrams = Double(customServingSize) {
++                    let updatedItem = item.withServingSize(servingGrams)
++
++                    VStack(spacing: 12) {
++                        Text("Nutritional Values")
++                            .font(.headline)
++
++                        HStack {
++                            NutrientTotal(label: "Carbs", value: updatedItem.actualCarbs, unit: "g")
++                            Spacer()
++                            NutrientTotal(label: "Protein", value: updatedItem.actualProtein, unit: "g")
++                            Spacer()
++                            NutrientTotal(label: "Fat", value: updatedItem.actualFat, unit: "g")
++                        }
++                    }
++                    .padding()
++                    .background(Color(.systemGray6))
++                    .cornerRadius(10)
++                }
++
++                Spacer()
++            }
++            .padding()
++            .navigationTitle("Edit Serving Size")
++            .navigationBarTitleDisplayMode(.inline)
++            .toolbar {
++                ToolbarItem(placement: .navigationBarLeading) {
++                    Button("Cancel") {
++                        dismiss()
++                    }
++                }
++
++                ToolbarItem(placement: .navigationBarTrailing) {
++                    Button("Save") {
++                        if let servingGrams = Double(customServingSize) {
++                            let updatedItem = item.withServingSize(servingGrams)
++                            onSave(updatedItem)
++                        }
++                        dismiss()
++                    }
++                    .disabled(Double(customServingSize) == nil)
++                }
++            }
++        }
++    }
++}
++
++struct LoadingOverlay: View {
++    var body: some View {
++        ZStack {
++            Color.black.opacity(0.3)
++                .ignoresSafeArea()
++
++            VStack(spacing: 16) {
++                ProgressView()
++                    .scaleEffect(1.5)
++
++                Text("Looking up product...")
++                    .font(.headline)
++                    .foregroundColor(.primary)
++            }
++            .padding(24)
++            .background(Color(.systemBackground))
++            .cornerRadius(12)
++            .shadow(radius: 10)
++        }
++    }
++}
+-- 
+2.48.1
+

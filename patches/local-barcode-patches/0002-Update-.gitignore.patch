@@ -1,0 +1,24 @@
+From bde817ee04ee8db3d5cc8bf208fbd7331bfd421a Mon Sep 17 00:00:00 2001
+From: Nathan Solis <k9track@gmail.com>
+Date: Thu, 2 Oct 2025 08:51:54 -0600
+Subject: [PATCH 02/10] Update .gitignore
+
+---
+ .gitignore | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index 50d364dbc..1d0193f92 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -79,4 +79,5 @@ fastlane/screenshots
+ fastlane/test_output
+ fastlane/FastlaneRunner
+ 
+-ConfigOverride.xcconfig
+\ No newline at end of file
++ConfigOverride.xcconfig
++MinimedKit
+-- 
+2.48.1
+
