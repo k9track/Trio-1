@@ -24,6 +24,9 @@ struct Preferences: JSON, Equatable {
     var remainingCarbsFraction: Decimal = 1.0
     var remainingCarbsCap: Decimal = 90
     var enableUAM: Bool = false
+    var enableUAMOnSchedule: Bool = false
+    var uamScheduleStartHour: Decimal = 0
+    var uamScheduleEndHour: Decimal = 0
     var a52RiskEnable: Bool = false
     var enableSMBWithCOB: Bool = false
     var enableSMBWithTemptarget: Bool = false
@@ -80,6 +83,9 @@ extension Preferences {
         case remainingCarbsFraction
         case remainingCarbsCap
         case enableUAM
+        case enableUAMOnSchedule
+        case uamScheduleStartHour
+        case uamScheduleEndHour
         case a52RiskEnable = "A52_risk_enable"
         case enableSMBWithCOB = "enableSMB_with_COB"
         case enableSMBWithTemptarget = "enableSMB_with_temptarget"
@@ -214,6 +220,18 @@ extension Preferences: Decodable {
 
         if let enableUAM = try? container.decode(Bool.self, forKey: .enableUAM) {
             preferences.enableUAM = enableUAM
+        }
+
+        if let enableUAMOnSchedule = try? container.decode(Bool.self, forKey: .enableUAMOnSchedule) {
+            preferences.enableUAMOnSchedule = enableUAMOnSchedule
+        }
+
+        if let uamScheduleStartHour = try? container.decode(Decimal.self, forKey: .uamScheduleStartHour) {
+            preferences.uamScheduleStartHour = uamScheduleStartHour
+        }
+
+        if let uamScheduleEndHour = try? container.decode(Decimal.self, forKey: .uamScheduleEndHour) {
+            preferences.uamScheduleEndHour = uamScheduleEndHour
         }
 
         if let a52RiskEnable = try? container.decode(Bool.self, forKey: .a52RiskEnable) {

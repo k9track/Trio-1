@@ -1,0 +1,27 @@
+From 8778f26b44e124d1c6d2dd8b52e0b99cba2fd3a1 Mon Sep 17 00:00:00 2001
+From: Nathan Solis <k9track@gmail.com>
+Date: Tue, 7 Oct 2025 11:25:52 -0600
+Subject: [PATCH 10/10] Scanner: add permission alert, authorization flow, and
+ lifecycle cleanup
+
+---
+ Trio/Sources/Views/BarcodeScannerView.swift | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/Trio/Sources/Views/BarcodeScannerView.swift b/Trio/Sources/Views/BarcodeScannerView.swift
+index 4c6ad80f5..3f428535f 100644
+--- a/Trio/Sources/Views/BarcodeScannerView.swift
++++ b/Trio/Sources/Views/BarcodeScannerView.swift
+@@ -227,7 +227,8 @@ class BarcodeScannerViewController: UIViewController {
+ 
+         alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
+             if let url = URL(string: UIApplication.openSettingsURLString),
+-               UIApplication.shared.canOpenURL(url) {
++               UIApplication.shared.canOpenURL(url)
++            {
+                 UIApplication.shared.open(url)
+             }
+             self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+-- 
+2.48.1
+
