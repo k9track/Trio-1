@@ -1,10 +1,170 @@
 import Charts
 import CoreData
 import LoopKitUI
+import Observation
 import SwiftUI
 import Swinject
 
 extension Treatments {
+    /// Represents a food item scanned via barcode with nutritional information
+    struct FoodItem: Identifiable, Codable, Hashable {
+        let id: UUID
+        let barcode: String
+        let name: String
+        let brand: String?
+        let servingSize: String?
+        let carbsPer100g: Double
+        let proteinPer100g: Double
+        let fatPer100g: Double
+        let caloriesPer100g: Double?
+        let servingSizeGrams: Double?
+
+        init(
+            barcode: String,
+            name: String,
+            brand: String?,
+            servingSize: String?,
+            carbsPer100g: Double,
+            proteinPer100g: Double,
+            fatPer100g: Double,
+            caloriesPer100g: Double?,
+            servingSizeGrams: Double?
+        ) {
+            id = UUID()
+            self.barcode = barcode
+            self.name = name
+            self.brand = brand
+            self.servingSize = servingSize
+            self.carbsPer100g = carbsPer100g
+            self.proteinPer100g = proteinPer100g
+            self.fatPer100g = fatPer100g
+            self.caloriesPer100g = caloriesPer100g
+            self.servingSizeGrams = servingSizeGrams
+        }
+
+        private init(
+            id: UUID,
+            barcode: String,
+            name: String,
+            brand: String?,
+            servingSize: String?,
+            carbsPer100g: Double,
+            proteinPer100g: Double,
+            fatPer100g: Double,
+            caloriesPer100g: Double?,
+            servingSizeGrams: Double?
+        ) {
+            self.id = id
+            self.barcode = barcode
+            self.name = name
+            self.brand = brand
+            self.servingSize = servingSize
+            self.carbsPer100g = carbsPer100g
+            self.proteinPer100g = proteinPer100g
+            self.fatPer100g = fatPer100g
+            self.caloriesPer100g = caloriesPer100g
+            self.servingSizeGrams = servingSizeGrams
+        }
+
+        /// Calculated nutritional values for the actual serving
+        var actualCarbs: Double {
+            guard let servingSizeGrams = servingSizeGrams else { return carbsPer100g }
+            return (carbsPer100g * servingSizeGrams) / 100.0
+        }
+
+        var actualProtein: Double {
+            guard let servingSizeGrams = servingSizeGrams else { return proteinPer100g }
+            return (proteinPer100g * servingSizeGrams) / 100.0
+        }
+
+        var actualFat: Double {
+            guard let servingSizeGrams = servingSizeGrams else { return fatPer100g }
+            return (fatPer100g * servingSizeGrams) / 100.0
+        }
+
+        var actualCalories: Double? {
+            guard let caloriesPer100g = caloriesPer100g,
+                  let servingSizeGrams = servingSizeGrams else { return caloriesPer100g }
+            return (caloriesPer100g * servingSizeGrams) / 100.0
+        }
+
+        /// Display name for the food item
+        var displayName: String {
+            if let brand = brand, !brand.isEmpty {
+                return "\(name) - \(brand)"
+            }
+            return name
+        }
+
+        /// Creates a food item with custom serving size
+        func withServingSize(_ grams: Double) -> FoodItem {
+            // Preserve the original ID to maintain identity in lists
+            FoodItem(
+                id: id,
+                barcode: barcode,
+                name: name,
+                brand: brand,
+                servingSize: "\(Int(grams))g",
+                carbsPer100g: carbsPer100g,
+                proteinPer100g: proteinPer100g,
+                fatPer100g: fatPer100g,
+                caloriesPer100g: caloriesPer100g,
+                servingSizeGrams: grams
+            )
+        }
+    }
+
+    /// Observable class to manage a collection of scanned food items for meal planning
+    @Observable class ScannedMealItems {
+        var items: [FoodItem] = []
+
+        /// Total carbohydrates from all scanned items
+        var totalCarbs: Double {
+            items.reduce(0) { $0 + $1.actualCarbs }
+        }
+
+        /// Total protein from all scanned items
+        var totalProtein: Double {
+            items.reduce(0) { $0 + $1.actualProtein }
+        }
+
+        /// Total fat from all scanned items
+        var totalFat: Double {
+            items.reduce(0) { $0 + $1.actualFat }
+        }
+
+        /// Total calories from all scanned items
+        var totalCalories: Double {
+            items.compactMap(\.actualCalories).reduce(0, +)
+        }
+
+        /// Generate a notes string for the meal
+        var notesString: String {
+            let itemNames = items.map(\.displayName)
+            return "Scanned: " + itemNames.joined(separator: ", ")
+        }
+
+        /// Add a food item to the meal
+        func addItem(_ item: FoodItem) {
+            items.append(item)
+        }
+
+        /// Remove a food item from the meal
+        func removeItem(_ item: FoodItem) {
+            items.removeAll { $0.id == item.id }
+        }
+
+        /// Clear all items from the meal
+        func clearAll() {
+            items.removeAll()
+        }
+
+        /// Check if meal has any items
+        var hasItems: Bool {
+            !items.isEmpty
+        }
+    }
+
     struct RootView: BaseView {
         enum FocusedField {
             case carbs
@@ -24,6 +184,16 @@ extension Treatments {
         @State private var calculatorDetent = PresentationDetent.large
         @State private var pushed: Bool = false
         @State private var debounce: DispatchWorkItem?
+
+        // Barcode scanner states
+        @State private var showScannedItemsSheet = false
+        @State private var showBarcodeScanner = false
+        @State private var scannedCode: String?
+        @State private var scannedMeal = ScannedMealItems()
+        @State private var showBarcodeNotFoundAlert = false
+        // Serving size editor states
+        @State private var editingItem: FoodItem?
+        @State private var customServingSize: String = ""
 
         private enum Config {
             static let dividerHeight: CGFloat = 2
@@ -79,6 +249,66 @@ extension Treatments {
             }
             if let debounce = debounce {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: debounce)
+            }
+        }
+
+        /// Transfers scanned food items data to treatment fields
+        private func addScannedItemsToTreatment() {
+            // Add scanned totals to existing values
+            let currentCarbs = Double(state.carbs)
+            let currentProtein = Double(state.protein)
+            let currentFat = Double(state.fat)
+
+            state.carbs = Decimal(currentCarbs + scannedMeal.totalCarbs)
+            state.protein = Decimal(currentProtein + scannedMeal.totalProtein)
+            state.fat = Decimal(currentFat + scannedMeal.totalFat)
+
+            // Add scanned items to notes
+            let currentNote = state.note.trimmingCharacters(in: .whitespacesAndNewlines)
+            let scannedNotes = scannedMeal.notesString
+
+            if currentNote.isEmpty {
+                state.note = scannedNotes
+            } else {
+                state.note = currentNote + "; " + scannedNotes
+            }
+
+            // Clear scanned items after transfer
+            scannedMeal.clearAll()
+
+            // Update forecasts with new values
+            handleDebouncedInput()
+        }
+
+        private func lookupFood(barcode: String) async {
+            do {
+                if let foodItem = try await FoodDatabaseService.shared.lookupFood(barcode: barcode) {
+                    await MainActor.run {
+                        // Prompt user to edit serving size before adding
+                        editingItem = foodItem
+                        customServingSize = String(foodItem.servingSizeGrams ?? 100)
+                    }
+                } else {
+                    await MainActor.run {
+                        // Handle case where product is not found
+                        print("Product not found in database")
+                        // Dismiss scanner and show a user-facing alert with options
+                        showBarcodeScanner = false
+                        showBarcodeNotFoundAlert = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    // Handle error case
+                    print("Error looking up food: \(error.localizedDescription)")
+                    // Treat invalid or lookup errors the same as not found for UX consistency
+                    showBarcodeScanner = false
+                    showBarcodeNotFoundAlert = true
+                }
+            }
+
+            await MainActor.run {
+                scannedCode = nil
             }
         }
 
@@ -248,6 +478,33 @@ extension Treatments {
                                     maxLength: 25
                                 )
                             }
+
+                            // Barcode scanner button
+                            HStack {
+                                Button(action: {
+                                    showBarcodeScanner = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "barcode.viewfinder")
+                                        Text("Scan Food Items")
+                                    }
+                                    .foregroundColor(.blue)
+                                }
+                                .buttonStyle(.borderless)
+
+                                Spacer()
+
+                                if scannedMeal.hasItems {
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("\(scannedMeal.items.count) items")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text("C: \(String(format: "%.1f", scannedMeal.totalCarbs))g")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
                         }.listRowBackground(Color.chart)
 
                         Section {
@@ -408,12 +665,48 @@ extension Treatments {
             }) {
                 MealPresetView(state: state)
             }
+            .sheet(isPresented: $showBarcodeScanner) {
+                BarcodeScannerView(scannedCode: $scannedCode, isPresented: $showBarcodeScanner)
+            }
+            .sheet(isPresented: $showScannedItemsSheet) {
+                ScannedItemsView(
+                    scannedMeal: scannedMeal,
+                    onAddToTreatment: {
+                        addScannedItemsToTreatment()
+                        showScannedItemsSheet = false
+                    }
+                )
+            }
+            .sheet(item: $editingItem) { item in
+                FractionalServingSizeView(
+                    item: item,
+                    onSave: { updatedItem in
+                        scannedMeal.addItem(updatedItem)
+                        showScannedItemsSheet = true
+                    }
+                )
+            }
+            .onChange(of: scannedCode) { _, newCode in
+                if let code = newCode {
+                    Task {
+                        await lookupFood(barcode: code)
+                    }
+                }
+            }
             .alert("Error while processing Treatment", isPresented: $state.showDeterminationFailureAlert) {
                 Button("OK", role: .cancel) {
                     state.hideModal()
                 }
             } message: {
                 Text("\(state.determinationFailureMessage)")
+            }
+            .alert(String(localized: "Product not found"), isPresented: $showBarcodeNotFoundAlert) {
+                Button(String(localized: "Try Again")) {
+                    showBarcodeScanner = true
+                }
+                Button(String(localized: "Cancel"), role: .cancel) {}
+            } message: {
+                Text(String(localized: "No product found for that barcode. Please try again."))
             }
         }
 
@@ -427,6 +720,191 @@ extension Treatments {
                 return .updatingIOB
             default:
                 return .updatingTreatments
+            }
+        }
+
+        struct FractionalServingSizeView: View {
+            let item: FoodItem
+            let onSave: (FoodItem) -> Void
+
+            @Environment(\.dismiss) private var dismiss
+            @State private var portions: Double = 1
+            @State private var gramsPerPortion: Double = 100
+            @State private var lastDelta: Double = 0
+            @State private var showDelta: Bool = false
+            @State private var defaultPortion: Double?
+
+            var body: some View {
+                NavigationView {
+                    VStack(spacing: 20) {
+                        Text(item.displayName)
+                            .font(.title2)
+                            .fontWeight(.medium)
+                            .multilineTextAlignment(.center)
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Portions")
+                                .font(.headline)
+                            HStack {
+                                // Use 0.5 as the minimum when stepping by 0.5 to avoid
+                                // getting offset to 0.25 and producing values like 0.75/1.25
+                                // that make 1.0 unreachable from certain paths.
+                                Stepper(value: $portions, in: 0.5 ... 50, step: 0.5) {
+                                    Text(portions == floor(portions) ? "\(Int(portions))" : String(format: "%.1f", portions))
+                                }
+                                .labelsHidden()
+                                Spacer()
+                                Text("Per portion: \(Int(gramsPerPortion))g")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            // Visual feedback for +/− movements
+                            if showDelta {
+                                Text(String(format: "%+.1f portions", lastDelta))
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.blue.opacity(0.1))
+                                    .cornerRadius(8)
+                                    .transition(.opacity)
+                            }
+                            HStack(spacing: 8) {
+                                let quickOptions: [Double] = [0.5, 1.0, 1.5, 2.0]
+                                ForEach(quickOptions, id: \.self) { opt in
+                                    Button {
+                                        withAnimation(.easeOut(duration: 0.15)) {
+                                            portions = opt
+                                        }
+                                    } label: {
+                                        Text(opt == floor(opt) ? "\(Int(opt))" : String(format: "%.1f", opt))
+                                            .font(.caption)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                (abs(portions - opt) < 0.001) ? Color.blue
+                                                    .opacity(0.15) : Color(.systemGray6)
+                                            )
+                                            .cornerRadius(8)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                Spacer()
+                                if let defaultPortion, defaultPortion >= 0.5 {
+                                    Text(
+                                        "Default: " +
+                                            (
+                                                defaultPortion == floor(defaultPortion) ? "\(Int(defaultPortion))" :
+                                                    String(format: "%.1f", defaultPortion)
+                                            )
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+
+                        let totalGrams = gramsPerPortion * portions
+                        if totalGrams > 0 {
+                            let updatedItem = item.withServingSize(totalGrams)
+
+                            // Summary of selection
+                            HStack {
+                                Text(String(format: "Total: %.1f portions", portions))
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Text("\(Int(totalGrams))g total")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            VStack(spacing: 12) {
+                                Text("Nutritional Values")
+                                    .font(.headline)
+
+                                HStack {
+                                    NutrientTotal(label: "Carbs", value: updatedItem.actualCarbs, unit: "g")
+                                    Spacer()
+                                    NutrientTotal(label: "Protein", value: updatedItem.actualProtein, unit: "g")
+                                    Spacer()
+                                    NutrientTotal(label: "Fat", value: updatedItem.actualFat, unit: "g")
+                                }
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                        }
+
+                        Spacer()
+                    }
+                    .padding()
+                    .navigationTitle("Edit Serving Size")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") { dismiss() }
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Save") {
+                                let totalGrams = gramsPerPortion * portions
+                                let updatedItem = item.withServingSize(totalGrams)
+                                onSave(updatedItem)
+                                dismiss()
+                            }
+                            .disabled(gramsPerPortion <= 0 || portions <= 0)
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Save & Default") {
+                                let totalGrams = gramsPerPortion * portions
+                                let updatedItem = item.withServingSize(totalGrams)
+                                let key = "defaultPortion_\(item.barcode)"
+                                UserDefaults.standard.set(portions, forKey: key)
+                                defaultPortion = portions
+                                onSave(updatedItem)
+                                dismiss()
+                            }
+                            .disabled(gramsPerPortion <= 0 || portions <= 0)
+                        }
+                    }
+                    .onAppear {
+                        gramsPerPortion = max(1, item.servingSizeGrams ?? 100)
+                        let key = "defaultPortion_\(item.barcode)"
+                        if let stored = UserDefaults.standard.object(forKey: key) as? Double, stored >= 0.5 {
+                            let normalized = max(0.5, min(50, round(stored * 2) / 2))
+                            portions = normalized
+                            defaultPortion = normalized
+                        } else if let number = UserDefaults.standard.object(forKey: key) as? NSNumber {
+                            let stored = number.doubleValue
+                            if stored >= 0.5 {
+                                let normalized = max(0.5, min(50, round(stored * 2) / 2))
+                                portions = normalized
+                                defaultPortion = normalized
+                            } else {
+                                portions = 1
+                            }
+                        } else {
+                            portions = 1
+                        }
+                    }
+                    .onChange(of: portions) { oldValue, newValue in
+                        // Normalize to nearest 0.5 to keep values stable and reversible
+                        let normalized = max(0.5, min(50, round(newValue * 2) / 2))
+                        if normalized != newValue {
+                            portions = normalized
+                        }
+                        let oldNormalized = round(oldValue * 2) / 2
+                        lastDelta = normalized - oldNormalized
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            showDelta = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showDelta = false
+                            }
+                        }
+                    }
+                }
             }
         }
 

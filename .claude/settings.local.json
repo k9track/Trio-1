@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp:*)",
+      "Bash(/tmp/apply_patches.sh:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
