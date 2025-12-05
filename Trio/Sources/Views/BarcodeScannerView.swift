@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreHaptics
 import SwiftUI
 import UIKit
 
@@ -49,11 +50,14 @@ class BarcodeScannerViewController: UIViewController {
     private var previewLayer: AVCaptureVideoPreviewLayer!
     private var scanningView: UIView!
     private var instructionLabel: UILabel!
+    private var scanLine: UIView!
+    private var cornerBrackets: [UIView] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
         prepareCamera()
         setupUI()
+        startScanAnimation()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -155,58 +159,192 @@ class BarcodeScannerViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = UIColor.black
 
-        // Create scanning area overlay
+        // Add semi-transparent overlay with cut-out for scanning area
+        let overlayView = UIView()
+        overlayView.backgroundColor = UIColor.clear
+        overlayView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(overlayView)
+
+        // Create scanning area with modern design
         scanningView = UIView()
-        scanningView.layer.borderColor = UIColor.systemBlue.cgColor
-        scanningView.layer.borderWidth = 2
-        scanningView.layer.cornerRadius = 8
         scanningView.backgroundColor = UIColor.clear
+        scanningView.layer.cornerRadius = 20
         scanningView.translatesAutoresizingMaskIntoConstraints = false
+        scanningView.accessibilityLabel = "Barcode scanning area"
+        scanningView.accessibilityHint = "Position the barcode within this frame to scan"
         view.addSubview(scanningView)
 
-        // Create instruction label
+        // Add corner brackets for visual guidance
+        addCornerBrackets()
+
+        // Add animated scanning line
+        addScanLine()
+
+        // Create instruction label with modern styling
         instructionLabel = UILabel()
-        instructionLabel.text = "Position barcode within the frame"
+        instructionLabel.text = "Align barcode in the frame"
         instructionLabel.textColor = UIColor.white
         instructionLabel.textAlignment = .center
-        instructionLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        instructionLabel.backgroundColor = UIColor.black.withAlphaComponent(0.7)
-        instructionLabel.layer.cornerRadius = 8
+        instructionLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        instructionLabel.numberOfLines = 0
+        instructionLabel.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.85)
+        instructionLabel.layer.cornerRadius = 14
         instructionLabel.layer.masksToBounds = true
         instructionLabel.translatesAutoresizingMaskIntoConstraints = false
+        instructionLabel.layer.shadowColor = UIColor.black.cgColor
+        instructionLabel.layer.shadowOffset = CGSize(width: 0, height: 2)
+        instructionLabel.layer.shadowOpacity = 0.3
+        instructionLabel.layer.shadowRadius = 4
         view.addSubview(instructionLabel)
 
-        // Create close button
+        // Create modern close button with SF Symbol
         let closeButton = UIButton(type: .system)
-        closeButton.setTitle("Close", for: .normal)
-        closeButton.setTitleColor(.white, for: .normal)
-        closeButton.backgroundColor = UIColor.black.withAlphaComponent(0.7)
-        closeButton.layer.cornerRadius = 8
-        closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        let config = UIImage.SymbolConfiguration(pointSize: 22, weight: .bold)
+        let closeImage = UIImage(systemName: "xmark.circle.fill", withConfiguration: config)
+        closeButton.setImage(closeImage, for: .normal)
+        closeButton.tintColor = .white
+        closeButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        closeButton.layer.cornerRadius = 22
         closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.accessibilityLabel = "Close barcode scanner"
+        closeButton.accessibilityHint = "Dismiss the barcode scanning interface"
+
+        // Add shadow to close button
+        closeButton.layer.shadowColor = UIColor.black.cgColor
+        closeButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        closeButton.layer.shadowOpacity = 0.3
+        closeButton.layer.shadowRadius = 4
         view.addSubview(closeButton)
 
         // Setup constraints
         NSLayoutConstraint.activate([
+            // Overlay
+            overlayView.topAnchor.constraint(equalTo: view.topAnchor),
+            overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            overlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            overlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
             // Scanning area
             scanningView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             scanningView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            scanningView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
+            scanningView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.85),
             scanningView.heightAnchor.constraint(equalTo: scanningView.widthAnchor, multiplier: 0.6),
 
             // Instruction label
             instructionLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            instructionLabel.topAnchor.constraint(equalTo: scanningView.bottomAnchor, constant: 20),
-            instructionLabel.widthAnchor.constraint(equalTo: scanningView.widthAnchor),
-            instructionLabel.heightAnchor.constraint(equalToConstant: 40),
+            instructionLabel.topAnchor.constraint(equalTo: scanningView.bottomAnchor, constant: 32),
+            instructionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            instructionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
+            instructionLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 50),
 
             // Close button
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            closeButton.widthAnchor.constraint(equalToConstant: 80),
-            closeButton.heightAnchor.constraint(equalToConstant: 40)
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            closeButton.widthAnchor.constraint(equalToConstant: 44),
+            closeButton.heightAnchor.constraint(equalToConstant: 44)
         ])
+
+        // Add pulsing animation to instruction label
+        addPulsingAnimation(to: instructionLabel)
+    }
+
+    private func addCornerBrackets() {
+        let bracketLength: CGFloat = 30
+        let bracketWidth: CGFloat = 4
+        let bracketColor = UIColor.systemGreen
+
+        // Top-left
+        let topLeft = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
+        scanningView.addSubview(topLeft)
+        NSLayoutConstraint.activate([
+            topLeft.topAnchor.constraint(equalTo: scanningView.topAnchor),
+            topLeft.leadingAnchor.constraint(equalTo: scanningView.leadingAnchor)
+        ])
+
+        // Top-right
+        let topRight = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
+        topRight.transform = CGAffineTransform(scaleX: -1, y: 1)
+        scanningView.addSubview(topRight)
+        NSLayoutConstraint.activate([
+            topRight.topAnchor.constraint(equalTo: scanningView.topAnchor),
+            topRight.trailingAnchor.constraint(equalTo: scanningView.trailingAnchor)
+        ])
+
+        // Bottom-left
+        let bottomLeft = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
+        bottomLeft.transform = CGAffineTransform(scaleX: 1, y: -1)
+        scanningView.addSubview(bottomLeft)
+        NSLayoutConstraint.activate([
+            bottomLeft.bottomAnchor.constraint(equalTo: scanningView.bottomAnchor),
+            bottomLeft.leadingAnchor.constraint(equalTo: scanningView.leadingAnchor)
+        ])
+
+        // Bottom-right
+        let bottomRight = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
+        bottomRight.transform = CGAffineTransform(scaleX: -1, y: -1)
+        scanningView.addSubview(bottomRight)
+        NSLayoutConstraint.activate([
+            bottomRight.bottomAnchor.constraint(equalTo: scanningView.bottomAnchor),
+            bottomRight.trailingAnchor.constraint(equalTo: scanningView.trailingAnchor)
+        ])
+    }
+
+    private func createBracket(length: CGFloat, width: CGFloat, color: UIColor) -> UIView {
+        let bracket = UIView()
+        bracket.translatesAutoresizingMaskIntoConstraints = false
+
+        let horizontal = UIView()
+        horizontal.backgroundColor = color
+        horizontal.translatesAutoresizingMaskIntoConstraints = false
+        bracket.addSubview(horizontal)
+
+        let vertical = UIView()
+        vertical.backgroundColor = color
+        vertical.translatesAutoresizingMaskIntoConstraints = false
+        bracket.addSubview(vertical)
+
+        NSLayoutConstraint.activate([
+            horizontal.topAnchor.constraint(equalTo: bracket.topAnchor),
+            horizontal.leadingAnchor.constraint(equalTo: bracket.leadingAnchor),
+            horizontal.widthAnchor.constraint(equalToConstant: length),
+            horizontal.heightAnchor.constraint(equalToConstant: width),
+
+            vertical.topAnchor.constraint(equalTo: bracket.topAnchor),
+            vertical.leadingAnchor.constraint(equalTo: bracket.leadingAnchor),
+            vertical.widthAnchor.constraint(equalToConstant: width),
+            vertical.heightAnchor.constraint(equalToConstant: length)
+        ])
+
+        return bracket
+    }
+
+    private func addScanLine() {
+        scanLine = UIView()
+        scanLine.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.7)
+        scanLine.translatesAutoresizingMaskIntoConstraints = false
+        scanningView.addSubview(scanLine)
+
+        NSLayoutConstraint.activate([
+            scanLine.leadingAnchor.constraint(equalTo: scanningView.leadingAnchor),
+            scanLine.trailingAnchor.constraint(equalTo: scanningView.trailingAnchor),
+            scanLine.heightAnchor.constraint(equalToConstant: 2),
+            scanLine.topAnchor.constraint(equalTo: scanningView.topAnchor)
+        ])
+    }
+
+    private func startScanAnimation() {
+        guard let scanLine = scanLine else { return }
+
+        UIView.animate(withDuration: 2.0, delay: 0, options: [.repeat, .autoreverse, .curveEaseInOut], animations: {
+            scanLine.frame.origin.y = self.scanningView.bounds.height - 2
+        }, completion: nil)
+    }
+
+    private func addPulsingAnimation(to view: UIView) {
+        UIView.animate(withDuration: 1.5, delay: 0, options: [.repeat, .autoreverse, .curveEaseInOut], animations: {
+            view.alpha = 0.7
+        }, completion: nil)
     }
 
     @objc private func closeButtonTapped() {
@@ -250,8 +388,28 @@ extension BarcodeScannerViewController: AVCaptureMetadataOutputObjectsDelegate {
             guard let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject else { return }
             guard let stringValue = readableObject.stringValue else { return }
 
-            AudioServicesPlaySystemSound(SystemSoundID(kSystemSoundID_Vibrate))
+            // Provide haptic feedback with success animation
+            playHapticFeedback()
+            showSuccessAnimation()
             delegate?.didScanBarcode(stringValue)
+        }
+    }
+
+    private func playHapticFeedback() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+    }
+
+    private func showSuccessAnimation() {
+        scanningView.layer.borderColor = UIColor.systemGreen.cgColor
+        scanningView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.2)
+
+        UIView.animate(withDuration: 0.3, animations: {
+            self.scanningView.alpha = 0.7
+        }) { _ in
+            UIView.animate(withDuration: 0.2) {
+                self.scanningView.alpha = 1.0
+            }
         }
     }
 }
