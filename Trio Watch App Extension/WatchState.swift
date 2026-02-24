@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import WatchConnectivity
+import WidgetKit
 
 /// WatchState manages the communication between the Watch app and the iPhone app using WatchConnectivity.
 /// It handles glucose data synchronization and sending treatment requests (bolus, carbs) to the phone.
@@ -437,6 +438,9 @@ import WatchConnectivity
         // Actually set your main UI properties here
         processRawDataForWatchState(pendingData)
 
+        // Update watch face complication with latest data
+        updateComplication()
+
         // Clear
         pendingData.removeAll()
 
@@ -572,6 +576,30 @@ import WatchConnectivity
             if let booleanValue = confirmBolusFaster as? Bool {
                 self.confirmBolusFaster = booleanValue
             }
+        }
+    }
+
+    // MARK: - Watch Face Complication
+
+    /// Writes the current glucose data to shared UserDefaults and triggers
+    /// WidgetKit to refresh all watch face complications.
+    private func updateComplication() {
+        let data = ComplicationData(
+            glucose: currentGlucose,
+            glucoseColorHex: currentGlucoseColorString,
+            trend: trend,
+            delta: delta,
+            iob: iob,
+            cob: cob,
+            lastLoopTime: lastLoopTime,
+            updatedAt: Date()
+        )
+
+        ComplicationDataStore.save(data)
+        WidgetCenter.shared.reloadTimelines(ofKind: "TrioWatchComplication")
+
+        Task {
+            await WatchLogger.shared.log("⌚️ Updated watch face complication")
         }
     }
 }

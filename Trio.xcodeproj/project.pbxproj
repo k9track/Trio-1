@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA00020100000000000CC001 /* ComplicationShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010100000000000CC001 /* ComplicationShared.swift */; };
+		AA00020200000000000CC002 /* ComplicationShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00010100000000000CC001 /* ComplicationShared.swift */; };
 		041D1E995A6AE92E9289DC49 /* TreatmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */; };
 		0437CE46C12535A56504EC19 /* SnoozeRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5822B15939E719628E9FF7C /* SnoozeRootView.swift */; };
 		0D9A5E34A899219C5C4CDFAF /* HistoryStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9455FA2D92E77A6C4AFED8A3 /* HistoryStateModel.swift */; };
@@ -1245,6 +1247,9 @@
 		BD8FC0632D6619EF00B95AED /* TempTargetStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TempTargetStorageTests.swift; sourceTree = "<group>"; };
 		BD8FC0652D661A0000B95AED /* GlucoseStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseStorageTests.swift; sourceTree = "<group>"; };
 		BDA25EE32D260CCF00035F34 /* AppleWatchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleWatchManager.swift; sourceTree = "<group>"; };
+		AA00010100000000000CC001 /* ComplicationShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComplicationShared.swift; sourceTree = "<group>"; };
+		AA00010200000000000CC002 /* TrioWatchApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrioWatchApp.entitlements; sourceTree = "<group>"; };
+		AA00010300000000000CC003 /* TrioWatchComplication.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrioWatchComplication.entitlements; sourceTree = "<group>"; };
 		BDA25EE52D260D5800035F34 /* WatchState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchState.swift; sourceTree = "<group>"; };
 		BDA25EFC2D261BF200035F34 /* WatchState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchState.swift; sourceTree = "<group>"; };
 		BDA25F1B2D26BD0300035F34 /* TrendShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendShape.swift; sourceTree = "<group>"; };
@@ -3045,6 +3050,8 @@
 		BDFF7A9C2D25FA730016C40C /* Trio Watch App Extension */ = {
 			isa = PBXGroup;
 			children = (
+				AA00010100000000000CC001 /* ComplicationShared.swift */,
+				AA00010200000000000CC002 /* TrioWatchApp.entitlements */,
 				DDFF204D2DB2C00B00AB8A96 /* WatchStateSnapshot.swift */,
 				DDFF20492DB29EF500AB8A96 /* WatchLogger.swift */,
 				BDA25EE52D260D5800035F34 /* WatchState.swift */,
@@ -3262,6 +3269,7 @@
 		DD09D6492D2B6253000D82C9 /* Trio Watch Complication */ = {
 			isa = PBXGroup;
 			children = (
+				AA00010300000000000CC003 /* TrioWatchComplication.entitlements */,
 				DD09D6412D2B553A000D82C9 /* Assets.xcassets */,
 				DD09D6422D2B553A000D82C9 /* Info.plist */,
 				DD09D6432D2B553A000D82C9 /* TrioWatchComplication.swift */,
@@ -4789,6 +4797,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA00020200000000000CC002 /* ComplicationShared.swift in Sources */,
 				DD09D6462D2B553A000D82C9 /* TrioWatchComplication.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -4816,6 +4825,7 @@
 				BD54A9712D281A8100F9C1EE /* TempTargetPresetsView.swift in Sources */,
 				DD3A3CE92D29C97800AE478E /* Helper+ButtonStyles.swift in Sources */,
 				BDAE40002D372BAD009C12B1 /* WatchState+Requests.swift in Sources */,
+				AA00020100000000000CC001 /* ComplicationShared.swift in Sources */,
 				BDA25EE62D260D5E00035F34 /* WatchState.swift in Sources */,
 				BD04ECCE2D29952A008C5FEB /* BolusProgressOverlay.swift in Sources */,
 				DD09D5C92D29F3D0000D82C9 /* AcknowledgementPendingView.swift in Sources */,
@@ -5195,10 +5205,12 @@
 		BD8207D02D2B42E80023339D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Trio Watch Complication/TrioWatchComplication.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";
@@ -5232,10 +5244,12 @@
 		BD8207D12D2B42E80023339D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Trio Watch Complication/TrioWatchComplication.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";
@@ -5268,10 +5282,12 @@
 		BDFF79A12D25AA890016C40C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Trio Watch App Extension/TrioWatchApp.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";
@@ -5305,10 +5321,12 @@
 		BDFF79A22D25AA890016C40C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_ID = "$(TRIO_APP_GROUP_ID)";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Trio Watch App Extension/TrioWatchApp.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(APP_BUILD_NUMBER)";
