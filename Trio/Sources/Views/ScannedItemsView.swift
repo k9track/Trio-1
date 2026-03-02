@@ -322,7 +322,7 @@ struct NutrientValue: View {
             Text(label)
                 .font(.caption2)
                 .foregroundColor(.secondary)
-            Text(numberFormatter.string(from: NSNumber(value: value)) ?? "0")
+            Text(Self.numberFormatter.string(from: NSNumber(value: value)) ?? "0")
                 .font(.caption)
                 .fontWeight(.medium)
         }
@@ -346,7 +346,7 @@ struct NutrientTotal: View {
             Text(label)
                 .font(.subheadline)
                 .fontWeight(.medium)
-            Text("\(numberFormatter.string(from: NSNumber(value: value)) ?? "0") \(unit)")
+            Text("\(Self.numberFormatter.string(from: NSNumber(value: value)) ?? "0") \(unit)")
                 .font(.title3)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
