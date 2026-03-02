@@ -1,5 +1,4 @@
 import AVFoundation
-import CoreHaptics
 import SwiftUI
 import UIKit
 
@@ -51,12 +50,17 @@ class BarcodeScannerViewController: UIViewController {
     private var scanningView: UIView!
     private var instructionLabel: UILabel!
     private var scanLine: UIView!
+    private var scanLineTopConstraint: NSLayoutConstraint?
     private var cornerBrackets: [UIView] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
         prepareCamera()
         setupUI()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
         startScanAnimation()
     }
 
@@ -170,8 +174,14 @@ class BarcodeScannerViewController: UIViewController {
         scanningView.backgroundColor = UIColor.clear
         scanningView.layer.cornerRadius = 20
         scanningView.translatesAutoresizingMaskIntoConstraints = false
-        scanningView.accessibilityLabel = "Barcode scanning area"
-        scanningView.accessibilityHint = "Position the barcode within this frame to scan"
+        scanningView.accessibilityLabel = NSLocalizedString(
+            "Barcode scanning area",
+            comment: "Accessibility label for the barcode scanning frame"
+        )
+        scanningView.accessibilityHint = NSLocalizedString(
+            "Position the barcode within this frame to scan",
+            comment: "Accessibility hint for the barcode scanning frame"
+        )
         view.addSubview(scanningView)
 
         // Add corner brackets for visual guidance
@@ -182,7 +192,10 @@ class BarcodeScannerViewController: UIViewController {
 
         // Create instruction label with modern styling
         instructionLabel = UILabel()
-        instructionLabel.text = "Align barcode in the frame"
+        instructionLabel.text = NSLocalizedString(
+            "Align barcode in the frame",
+            comment: "Instruction label in the barcode scanner view"
+        )
         instructionLabel.textColor = UIColor.white
         instructionLabel.textAlignment = .center
         instructionLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
@@ -207,8 +220,14 @@ class BarcodeScannerViewController: UIViewController {
         closeButton.layer.cornerRadius = 22
         closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.accessibilityLabel = "Close barcode scanner"
-        closeButton.accessibilityHint = "Dismiss the barcode scanning interface"
+        closeButton.accessibilityLabel = NSLocalizedString(
+            "Close barcode scanner",
+            comment: "Accessibility label for the close button in the barcode scanner"
+        )
+        closeButton.accessibilityHint = NSLocalizedString(
+            "Dismiss the barcode scanning interface",
+            comment: "Accessibility hint for the close button in the barcode scanner"
+        )
 
         // Add shadow to close button
         closeButton.layer.shadowColor = UIColor.black.cgColor
@@ -325,19 +344,24 @@ class BarcodeScannerViewController: UIViewController {
         scanLine.translatesAutoresizingMaskIntoConstraints = false
         scanningView.addSubview(scanLine)
 
+        let topConstraint = scanLine.topAnchor.constraint(equalTo: scanningView.topAnchor)
+        scanLineTopConstraint = topConstraint
         NSLayoutConstraint.activate([
             scanLine.leadingAnchor.constraint(equalTo: scanningView.leadingAnchor),
             scanLine.trailingAnchor.constraint(equalTo: scanningView.trailingAnchor),
             scanLine.heightAnchor.constraint(equalToConstant: 2),
-            scanLine.topAnchor.constraint(equalTo: scanningView.topAnchor)
+            topConstraint
         ])
     }
 
     private func startScanAnimation() {
-        guard let scanLine = scanLine else { return }
+        guard scanLine != nil, let topConstraint = scanLineTopConstraint else { return }
+        topConstraint.constant = 0
+        scanningView.layoutIfNeeded()
 
         UIView.animate(withDuration: 2.0, delay: 0, options: [.repeat, .autoreverse, .curveEaseInOut], animations: {
-            scanLine.frame.origin.y = self.scanningView.bounds.height - 2
+            topConstraint.constant = self.scanningView.bounds.height - 2
+            self.scanningView.layoutIfNeeded()
         }, completion: nil)
     }
 
@@ -358,19 +382,26 @@ class BarcodeScannerViewController: UIViewController {
 
     private func presentPermissionAlert() {
         let alert = UIAlertController(
-            title: "Camera Access Needed",
-            message: "Enable camera access in Settings to scan barcodes.",
+            title: NSLocalizedString("Camera Access Needed", comment: "Camera permission alert title"),
+            message: NSLocalizedString(
+                "Enable camera access in Settings to scan barcodes.",
+                comment: "Camera permission alert message"
+            ),
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Open Settings", style: .default) { _ in
-            if let url = URL(string: UIApplication.openSettingsURLString),
-               UIApplication.shared.canOpenURL(url)
-            {
-                UIApplication.shared.open(url)
-            }
-            self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
-        })
+        alert
+            .addAction(UIAlertAction(
+                title: NSLocalizedString("Open Settings", comment: "Button to open iOS Settings"),
+                style: .default
+            ) { _ in
+                if let url = URL(string: UIApplication.openSettingsURLString),
+                   UIApplication.shared.canOpenURL(url)
+                {
+                    UIApplication.shared.open(url)
+                }
+                self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
+            })
 
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
             self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)

@@ -3,6 +3,22 @@
 #################################
 # Automated Patch Application Script
 # Applies barcode scanner patches to TRIO codebase
+#
+# Patches (applied in order):
+#   0001 - BarCode Scanner (initial feature)
+#   0002 - Update .gitignore
+#   0003 - Update MinimedKit
+#   0004 - Scan and portions update
+#   0005 - Updates
+#   0006 - Scanner updates
+#   0007 - Update TreatmentsRootView.swift
+#   0008 - Update BarcodeScannerView.swift
+#   0009 - Update BarcodeScannerView.swift
+#   0010 - Scanner: permission alert / authorization flow
+#   0011 - Code quality fixes (scan line animation, nutriment fallbacks,
+#           NavigationStack, static numberFormatter, localization, CLAUDE.md)
+#
+# combined.diff - Full diff of all barcode scanner files vs upstream/dev
 #################################
 
 set -e  # Exit on error

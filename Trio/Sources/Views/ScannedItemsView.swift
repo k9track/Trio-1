@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ScannedItemsView: View {
     @Bindable var scannedMeal: Treatments.ScannedMealItems
@@ -9,18 +10,21 @@ struct ScannedItemsView: View {
     @State private var showingError = false
     @State private var editingItem: Treatments.FoodItem?
     @State private var customServingSize: String = ""
+    @State private var showDuplicateWarning = false
+    @State private var duplicateItemName: String = ""
+    @State private var pendingFoodItem: Treatments.FoodItem?
 
     let onAddToTreatment: () -> Void
 
-    private var numberFormatter: NumberFormatter {
+    private static let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 1
         return formatter
-    }
+    }()
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Header with scan button
                 headerView
@@ -57,6 +61,20 @@ struct ScannedItemsView: View {
                 Button("OK") {}
             } message: {
                 Text(errorMessage ?? "Unknown error occurred")
+            }
+            .alert("Duplicate Item", isPresented: $showDuplicateWarning) {
+                Button("Add Anyway") {
+                    if let item = pendingFoodItem {
+                        scannedMeal.addItem(item)
+                        playSuccessHaptic()
+                    }
+                    pendingFoodItem = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingFoodItem = nil
+                }
+            } message: {
+                Text("\(duplicateItemName) is already in your list. Add another?")
             }
             .onChange(of: scannedCode) { _, newCode in
                 if let code = newCode {
@@ -194,18 +212,29 @@ struct ScannedItemsView: View {
         do {
             if let foodItem = try await FoodDatabaseService.shared.lookupFood(barcode: barcode) {
                 await MainActor.run {
-                    scannedMeal.addItem(foodItem)
+                    // Check for duplicate barcode
+                    if let existingItem = scannedMeal.items.first(where: { $0.barcode == foodItem.barcode }) {
+                        duplicateItemName = existingItem.displayName
+                        pendingFoodItem = foodItem
+                        showDuplicateWarning = true
+                        playWarningHaptic()
+                    } else {
+                        scannedMeal.addItem(foodItem)
+                        playSuccessHaptic()
+                    }
                 }
             } else {
                 await MainActor.run {
                     errorMessage = "Product not found in database"
                     showingError = true
+                    playErrorHaptic()
                 }
             }
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 showingError = true
+                playErrorHaptic()
             }
         }
 
@@ -213,6 +242,21 @@ struct ScannedItemsView: View {
             isLoading = false
             scannedCode = nil
         }
+    }
+
+    private func playSuccessHaptic() {
+        let feedback = UINotificationFeedbackGenerator()
+        feedback.notificationOccurred(.success)
+    }
+
+    private func playWarningHaptic() {
+        let feedback = UINotificationFeedbackGenerator()
+        feedback.notificationOccurred(.warning)
+    }
+
+    private func playErrorHaptic() {
+        let feedback = UINotificationFeedbackGenerator()
+        feedback.notificationOccurred(.error)
     }
 
     private func updateItemServingSize(_ updatedItem: Treatments.FoodItem) {
@@ -225,12 +269,12 @@ struct ScannedItemsView: View {
 struct FoodItemRow: View {
     let item: Treatments.FoodItem
 
-    private var numberFormatter: NumberFormatter {
+    private static let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 1
         return formatter
-    }
+    }()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -266,12 +310,12 @@ struct NutrientValue: View {
     let label: String
     let value: Double
 
-    private var numberFormatter: NumberFormatter {
+    private static let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 1
         return formatter
-    }
+    }()
 
     var body: some View {
         VStack(spacing: 2) {
@@ -290,12 +334,12 @@ struct NutrientTotal: View {
     let value: Double
     let unit: String
 
-    private var numberFormatter: NumberFormatter {
+    private static let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 1
         return formatter
-    }
+    }()
 
     var body: some View {
         VStack(spacing: 4) {
@@ -322,7 +366,7 @@ struct EditServingSizeView: View {
     @State private var showDelta: Bool = false
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 Text(item.displayName)
                     .font(.title2)

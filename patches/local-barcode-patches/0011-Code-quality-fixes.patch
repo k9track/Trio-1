@@ -1,0 +1,1400 @@
+diff --git a/Trio/Sources/Services/FoodDatabaseService.swift b/Trio/Sources/Services/FoodDatabaseService.swift
+new file mode 100644
+index 000000000..16184872a
+--- /dev/null
++++ b/Trio/Sources/Services/FoodDatabaseService.swift
+@@ -0,0 +1,202 @@
++import Foundation
++import Network
++
++/// Service for looking up food nutritional information from barcodes
++class FoodDatabaseService {
++    static let shared = FoodDatabaseService()
++
++    private let cache = NSCache<NSString, CachedFoodItem>()
++    private let monitor = NWPathMonitor()
++    private var isNetworkAvailable = true
++
++    private init() {
++        cache.countLimit = 100
++        monitor.pathUpdateHandler = { [weak self] path in
++            self?.isNetworkAvailable = path.status == .satisfied
++        }
++        monitor.start(queue: DispatchQueue(label: "FoodDatabaseNetworkMonitor"))
++    }
++
++    deinit {
++        monitor.cancel()
++    }
++
++    /// Lookup food item by barcode using OpenFoodFacts API
++    func lookupFood(barcode: String) async throws -> Treatments.FoodItem? {
++        guard !barcode.isEmpty else {
++            throw FoodDatabaseError.invalidBarcode
++        }
++
++        // Check cache first
++        if let cachedItem = cache.object(forKey: barcode as NSString) {
++            return cachedItem.foodItem
++        }
++
++        // Check network availability
++        guard isNetworkAvailable else {
++            throw FoodDatabaseError.networkUnavailable
++        }
++
++        let urlString = "https://world.openfoodfacts.org/api/v0/product/\(barcode).json"
++        guard let url = URL(string: urlString) else {
++            throw FoodDatabaseError.invalidURL
++        }
++
++        var request = URLRequest(url: url)
++        request.timeoutInterval = 10
++        request.setValue("TrioApp/1.0", forHTTPHeaderField: "User-Agent")
++
++        let (data, response): (Data, URLResponse)
++        do {
++            (data, response) = try await URLSession.shared.data(for: request)
++        } catch let error as URLError where error.code == .timedOut {
++            throw FoodDatabaseError.timeout
++        }
++
++        guard let httpResponse = response as? HTTPURLResponse,
++              httpResponse.statusCode == 200
++        else {
++            throw FoodDatabaseError.networkError
++        }
++
++        let openFoodFactsResponse: OpenFoodFactsResponse
++        do {
++            openFoodFactsResponse = try JSONDecoder().decode(OpenFoodFactsResponse.self, from: data)
++        } catch {
++            throw FoodDatabaseError.decodingError
++        }
++
++        guard openFoodFactsResponse.status == 1,
++              let product = openFoodFactsResponse.product
++        else {
++            throw FoodDatabaseError.productNotFound
++        }
++
++        let foodItem = try convertToFoodItem(product: product, barcode: barcode)
++
++        // Cache the result
++        cache.setObject(CachedFoodItem(foodItem: foodItem), forKey: barcode as NSString)
++
++        return foodItem
++    }
++
++    private func convertToFoodItem(product: OpenFoodFactsProduct, barcode: String) throws -> Treatments.FoodItem {
++        guard let nutriments = product.nutriments else {
++            throw FoodDatabaseError.missingNutritionData
++        }
++
++        let name = product.product_name ?? product.product_name_en ?? "Unknown Product"
++        let brand = product.brands?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces)
++
++        // Convert nutrients per 100g (OpenFoodFacts standard), falling back to non-100g fields
++        let carbs = nutriments.carbohydrates_100g ?? nutriments.carbohydrates ?? 0.0
++        let protein = nutriments.proteins_100g ?? nutriments.proteins ?? 0.0
++        let fat = nutriments.fat_100g ?? nutriments.fat ?? 0.0
++        let calories = nutriments.energy_kcal_100g ?? nutriments.energy_kcal ?? 0.0
++
++        // Try to get serving size from the product
++        let servingSize = product.serving_size
++        let servingSizeGrams = parseServingSize(servingSize)
++
++        return Treatments.FoodItem(
++            barcode: barcode,
++            name: name,
++            brand: brand,
++            servingSize: servingSize,
++            carbsPer100g: carbs,
++            proteinPer100g: protein,
++            fatPer100g: fat,
++            caloriesPer100g: calories,
++            servingSizeGrams: servingSizeGrams
++        )
++    }
++
++    private func parseServingSize(_ servingSize: String?) -> Double? {
++        guard let servingSize = servingSize else { return nil }
++
++        // Try to extract grams from serving size string
++        let pattern = #"(\d+(?:\.\d+)?)\s*g"#
++        let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
++        let range = NSRange(location: 0, length: servingSize.utf16.count)
++
++        if let match = regex?.firstMatch(in: servingSize, options: [], range: range),
++           let gramsRange = Range(match.range(at: 1), in: servingSize)
++        {
++            return Double(servingSize[gramsRange])
++        }
++
++        return nil
++    }
++}
++
++// MARK: - Cache Wrapper
++
++private class CachedFoodItem: NSObject {
++    let foodItem: Treatments.FoodItem
++
++    init(foodItem: Treatments.FoodItem) {
++        self.foodItem = foodItem
++    }
++}
++
++// MARK: - OpenFoodFacts API Models
++
++struct OpenFoodFactsResponse: Codable {
++    let status: Int
++    let product: OpenFoodFactsProduct?
++}
++
++struct OpenFoodFactsProduct: Codable {
++    let product_name: String?
++    let product_name_en: String?
++    let brands: String?
++    let serving_size: String?
++    let nutriments: OpenFoodFactsNutriments?
++}
++
++struct OpenFoodFactsNutriments: Codable {
++    let carbohydrates_100g: Double?
++    let proteins_100g: Double?
++    let fat_100g: Double?
++    let energy_kcal_100g: Double?
++
++    // Alternative field names that might be present
++    let carbohydrates: Double?
++    let proteins: Double?
++    let fat: Double?
++    let energy_kcal: Double?
++}
++
++// MARK: - Errors
++
++enum FoodDatabaseError: LocalizedError {
++    case invalidBarcode
++    case invalidURL
++    case networkError
++    case networkUnavailable
++    case timeout
++    case productNotFound
++    case missingNutritionData
++    case decodingError
++
++    var errorDescription: String? {
++        switch self {
++        case .invalidBarcode:
++            return "Invalid barcode format"
++        case .invalidURL:
++            return "Invalid API URL"
++        case .networkError:
++            return "Network error occurred"
++        case .networkUnavailable:
++            return "No internet connection. Please check your network and try again."
++        case .timeout:
++            return "Request timed out. Please try again."
++        case .productNotFound:
++            return "Product not found in database"
++        case .missingNutritionData:
++            return "Nutrition data not available for this product"
++        case .decodingError:
++            return "Failed to decode product data"
++        }
++    }
++}
+diff --git a/Trio/Sources/Views/BarcodeScannerView.swift b/Trio/Sources/Views/BarcodeScannerView.swift
+new file mode 100644
+index 000000000..07afd2561
+--- /dev/null
++++ b/Trio/Sources/Views/BarcodeScannerView.swift
+@@ -0,0 +1,469 @@
++import AVFoundation
++import SwiftUI
++import UIKit
++
++struct BarcodeScannerView: UIViewControllerRepresentable {
++    @Binding var scannedCode: String?
++    @Binding var isPresented: Bool
++
++    func makeUIViewController(context: Context) -> BarcodeScannerViewController {
++        let controller = BarcodeScannerViewController()
++        controller.delegate = context.coordinator
++        return controller
++    }
++
++    func updateUIViewController(_: BarcodeScannerViewController, context _: Context) {}
++
++    func makeCoordinator() -> Coordinator {
++        Coordinator(self)
++    }
++
++    class Coordinator: NSObject, BarcodeScannerDelegate {
++        let parent: BarcodeScannerView
++
++        init(_ parent: BarcodeScannerView) {
++            self.parent = parent
++        }
++
++        func didScanBarcode(_ code: String) {
++            parent.scannedCode = code
++            parent.isPresented = false
++        }
++
++        func didFailWithError(_ error: Error) {
++            print("Barcode scanning failed: \(error.localizedDescription)")
++            parent.isPresented = false
++        }
++    }
++}
++
++protocol BarcodeScannerDelegate: AnyObject {
++    func didScanBarcode(_ code: String)
++    func didFailWithError(_ error: Error)
++}
++
++class BarcodeScannerViewController: UIViewController {
++    weak var delegate: BarcodeScannerDelegate?
++
++    private var captureSession: AVCaptureSession!
++    private var previewLayer: AVCaptureVideoPreviewLayer!
++    private var scanningView: UIView!
++    private var instructionLabel: UILabel!
++    private var scanLine: UIView!
++    private var scanLineTopConstraint: NSLayoutConstraint?
++    private var cornerBrackets: [UIView] = []
++
++    override func viewDidLoad() {
++        super.viewDidLoad()
++        prepareCamera()
++        setupUI()
++    }
++
++    override func viewDidAppear(_ animated: Bool) {
++        super.viewDidAppear(animated)
++        startScanAnimation()
++    }
++
++    override func viewWillAppear(_ animated: Bool) {
++        super.viewWillAppear(animated)
++
++        if captureSession != nil, !captureSession.isRunning {
++            DispatchQueue.global(qos: .userInitiated).async {
++                self.captureSession.startRunning()
++            }
++        }
++    }
++
++    override func viewWillDisappear(_ animated: Bool) {
++        super.viewWillDisappear(animated)
++
++        if captureSession != nil, captureSession.isRunning {
++            captureSession.stopRunning()
++        }
++        previewLayer?.removeFromSuperlayer()
++    }
++
++    deinit {
++        if captureSession != nil, captureSession.isRunning {
++            captureSession.stopRunning()
++        }
++        previewLayer = nil
++        captureSession = nil
++    }
++
++    private func prepareCamera() {
++        let status = AVCaptureDevice.authorizationStatus(for: .video)
++
++        switch status {
++        case .authorized:
++            setupCamera()
++        case .notDetermined:
++            AVCaptureDevice.requestAccess(for: .video) { granted in
++                DispatchQueue.main.async {
++                    if granted {
++                        self.setupCamera()
++                    } else {
++                        self.presentPermissionAlert()
++                    }
++                }
++            }
++        case .denied,
++             .restricted:
++            presentPermissionAlert()
++        @unknown default:
++            delegate?.didFailWithError(BarcodeScannerError.cameraNotAvailable)
++        }
++    }
++
++    private func setupCamera() {
++        captureSession = AVCaptureSession()
++
++        guard let videoCaptureDevice = AVCaptureDevice.default(for: .video) else {
++            delegate?.didFailWithError(BarcodeScannerError.cameraNotAvailable)
++            return
++        }
++
++        let videoInput: AVCaptureDeviceInput
++
++        do {
++            videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
++        } catch {
++            delegate?.didFailWithError(error)
++            return
++        }
++
++        if captureSession.canAddInput(videoInput) {
++            captureSession.addInput(videoInput)
++        } else {
++            delegate?.didFailWithError(BarcodeScannerError.cannotAddInput)
++            return
++        }
++
++        let metadataOutput = AVCaptureMetadataOutput()
++
++        if captureSession.canAddOutput(metadataOutput) {
++            captureSession.addOutput(metadataOutput)
++
++            metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
++            metadataOutput.metadataObjectTypes = [
++                .ean8, .ean13, .pdf417, .qr, .code128, .code39, .code93,
++                .upce, .aztec, .dataMatrix, .interleaved2of5, .itf14
++            ]
++        } else {
++            delegate?.didFailWithError(BarcodeScannerError.cannotAddOutput)
++            return
++        }
++
++        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
++        previewLayer.frame = view.layer.bounds
++        previewLayer.videoGravity = .resizeAspectFill
++        view.layer.addSublayer(previewLayer)
++    }
++
++    private func setupUI() {
++        view.backgroundColor = UIColor.black
++
++        // Add semi-transparent overlay with cut-out for scanning area
++        let overlayView = UIView()
++        overlayView.backgroundColor = UIColor.clear
++        overlayView.translatesAutoresizingMaskIntoConstraints = false
++        view.addSubview(overlayView)
++
++        // Create scanning area with modern design
++        scanningView = UIView()
++        scanningView.backgroundColor = UIColor.clear
++        scanningView.layer.cornerRadius = 20
++        scanningView.translatesAutoresizingMaskIntoConstraints = false
++        scanningView.accessibilityLabel = NSLocalizedString(
++            "Barcode scanning area",
++            comment: "Accessibility label for the barcode scanning frame"
++        )
++        scanningView.accessibilityHint = NSLocalizedString(
++            "Position the barcode within this frame to scan",
++            comment: "Accessibility hint for the barcode scanning frame"
++        )
++        view.addSubview(scanningView)
++
++        // Add corner brackets for visual guidance
++        addCornerBrackets()
++
++        // Add animated scanning line
++        addScanLine()
++
++        // Create instruction label with modern styling
++        instructionLabel = UILabel()
++        instructionLabel.text = NSLocalizedString(
++            "Align barcode in the frame",
++            comment: "Instruction label in the barcode scanner view"
++        )
++        instructionLabel.textColor = UIColor.white
++        instructionLabel.textAlignment = .center
++        instructionLabel.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
++        instructionLabel.numberOfLines = 0
++        instructionLabel.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.85)
++        instructionLabel.layer.cornerRadius = 14
++        instructionLabel.layer.masksToBounds = true
++        instructionLabel.translatesAutoresizingMaskIntoConstraints = false
++        instructionLabel.layer.shadowColor = UIColor.black.cgColor
++        instructionLabel.layer.shadowOffset = CGSize(width: 0, height: 2)
++        instructionLabel.layer.shadowOpacity = 0.3
++        instructionLabel.layer.shadowRadius = 4
++        view.addSubview(instructionLabel)
++
++        // Create modern close button with SF Symbol
++        let closeButton = UIButton(type: .system)
++        let config = UIImage.SymbolConfiguration(pointSize: 22, weight: .bold)
++        let closeImage = UIImage(systemName: "xmark.circle.fill", withConfiguration: config)
++        closeButton.setImage(closeImage, for: .normal)
++        closeButton.tintColor = .white
++        closeButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
++        closeButton.layer.cornerRadius = 22
++        closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
++        closeButton.translatesAutoresizingMaskIntoConstraints = false
++        closeButton.accessibilityLabel = NSLocalizedString(
++            "Close barcode scanner",
++            comment: "Accessibility label for the close button in the barcode scanner"
++        )
++        closeButton.accessibilityHint = NSLocalizedString(
++            "Dismiss the barcode scanning interface",
++            comment: "Accessibility hint for the close button in the barcode scanner"
++        )
++
++        // Add shadow to close button
++        closeButton.layer.shadowColor = UIColor.black.cgColor
++        closeButton.layer.shadowOffset = CGSize(width: 0, height: 2)
++        closeButton.layer.shadowOpacity = 0.3
++        closeButton.layer.shadowRadius = 4
++        view.addSubview(closeButton)
++
++        // Setup constraints
++        NSLayoutConstraint.activate([
++            // Overlay
++            overlayView.topAnchor.constraint(equalTo: view.topAnchor),
++            overlayView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
++            overlayView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
++            overlayView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
++
++            // Scanning area
++            scanningView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
++            scanningView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
++            scanningView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.85),
++            scanningView.heightAnchor.constraint(equalTo: scanningView.widthAnchor, multiplier: 0.6),
++
++            // Instruction label
++            instructionLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
++            instructionLabel.topAnchor.constraint(equalTo: scanningView.bottomAnchor, constant: 32),
++            instructionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
++            instructionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
++            instructionLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 50),
++
++            // Close button
++            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
++            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
++            closeButton.widthAnchor.constraint(equalToConstant: 44),
++            closeButton.heightAnchor.constraint(equalToConstant: 44)
++        ])
++
++        // Add pulsing animation to instruction label
++        addPulsingAnimation(to: instructionLabel)
++    }
++
++    private func addCornerBrackets() {
++        let bracketLength: CGFloat = 30
++        let bracketWidth: CGFloat = 4
++        let bracketColor = UIColor.systemGreen
++
++        // Top-left
++        let topLeft = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
++        scanningView.addSubview(topLeft)
++        NSLayoutConstraint.activate([
++            topLeft.topAnchor.constraint(equalTo: scanningView.topAnchor),
++            topLeft.leadingAnchor.constraint(equalTo: scanningView.leadingAnchor)
++        ])
++
++        // Top-right
++        let topRight = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
++        topRight.transform = CGAffineTransform(scaleX: -1, y: 1)
++        scanningView.addSubview(topRight)
++        NSLayoutConstraint.activate([
++            topRight.topAnchor.constraint(equalTo: scanningView.topAnchor),
++            topRight.trailingAnchor.constraint(equalTo: scanningView.trailingAnchor)
++        ])
++
++        // Bottom-left
++        let bottomLeft = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
++        bottomLeft.transform = CGAffineTransform(scaleX: 1, y: -1)
++        scanningView.addSubview(bottomLeft)
++        NSLayoutConstraint.activate([
++            bottomLeft.bottomAnchor.constraint(equalTo: scanningView.bottomAnchor),
++            bottomLeft.leadingAnchor.constraint(equalTo: scanningView.leadingAnchor)
++        ])
++
++        // Bottom-right
++        let bottomRight = createBracket(length: bracketLength, width: bracketWidth, color: bracketColor)
++        bottomRight.transform = CGAffineTransform(scaleX: -1, y: -1)
++        scanningView.addSubview(bottomRight)
++        NSLayoutConstraint.activate([
++            bottomRight.bottomAnchor.constraint(equalTo: scanningView.bottomAnchor),
++            bottomRight.trailingAnchor.constraint(equalTo: scanningView.trailingAnchor)
++        ])
++    }
++
++    private func createBracket(length: CGFloat, width: CGFloat, color: UIColor) -> UIView {
++        let bracket = UIView()
++        bracket.translatesAutoresizingMaskIntoConstraints = false
++
++        let horizontal = UIView()
++        horizontal.backgroundColor = color
++        horizontal.translatesAutoresizingMaskIntoConstraints = false
++        bracket.addSubview(horizontal)
++
++        let vertical = UIView()
++        vertical.backgroundColor = color
++        vertical.translatesAutoresizingMaskIntoConstraints = false
++        bracket.addSubview(vertical)
++
++        NSLayoutConstraint.activate([
++            horizontal.topAnchor.constraint(equalTo: bracket.topAnchor),
++            horizontal.leadingAnchor.constraint(equalTo: bracket.leadingAnchor),
++            horizontal.widthAnchor.constraint(equalToConstant: length),
++            horizontal.heightAnchor.constraint(equalToConstant: width),
++
++            vertical.topAnchor.constraint(equalTo: bracket.topAnchor),
++            vertical.leadingAnchor.constraint(equalTo: bracket.leadingAnchor),
++            vertical.widthAnchor.constraint(equalToConstant: width),
++            vertical.heightAnchor.constraint(equalToConstant: length)
++        ])
++
++        return bracket
++    }
++
++    private func addScanLine() {
++        scanLine = UIView()
++        scanLine.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.7)
++        scanLine.translatesAutoresizingMaskIntoConstraints = false
++        scanningView.addSubview(scanLine)
++
++        let topConstraint = scanLine.topAnchor.constraint(equalTo: scanningView.topAnchor)
++        scanLineTopConstraint = topConstraint
++        NSLayoutConstraint.activate([
++            scanLine.leadingAnchor.constraint(equalTo: scanningView.leadingAnchor),
++            scanLine.trailingAnchor.constraint(equalTo: scanningView.trailingAnchor),
++            scanLine.heightAnchor.constraint(equalToConstant: 2),
++            topConstraint
++        ])
++    }
++
++    private func startScanAnimation() {
++        guard scanLine != nil, let topConstraint = scanLineTopConstraint else { return }
++        topConstraint.constant = 0
++        scanningView.layoutIfNeeded()
++
++        UIView.animate(withDuration: 2.0, delay: 0, options: [.repeat, .autoreverse, .curveEaseInOut], animations: {
++            topConstraint.constant = self.scanningView.bounds.height - 2
++            self.scanningView.layoutIfNeeded()
++        }, completion: nil)
++    }
++
++    private func addPulsingAnimation(to view: UIView) {
++        UIView.animate(withDuration: 1.5, delay: 0, options: [.repeat, .autoreverse, .curveEaseInOut], animations: {
++            view.alpha = 0.7
++        }, completion: nil)
++    }
++
++    @objc private func closeButtonTapped() {
++        delegate?.didFailWithError(BarcodeScannerError.userCancelled)
++    }
++
++    override func viewDidLayoutSubviews() {
++        super.viewDidLayoutSubviews()
++        previewLayer?.frame = view.layer.bounds
++    }
++
++    private func presentPermissionAlert() {
++        let alert = UIAlertController(
++            title: NSLocalizedString("Camera Access Needed", comment: "Camera permission alert title"),
++            message: NSLocalizedString(
++                "Enable camera access in Settings to scan barcodes.",
++                comment: "Camera permission alert message"
++            ),
++            preferredStyle: .alert
++        )
++
++        alert
++            .addAction(UIAlertAction(
++                title: NSLocalizedString("Open Settings", comment: "Button to open iOS Settings"),
++                style: .default
++            ) { _ in
++                if let url = URL(string: UIApplication.openSettingsURLString),
++                   UIApplication.shared.canOpenURL(url)
++                {
++                    UIApplication.shared.open(url)
++                }
++                self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
++            })
++
++        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
++            self.delegate?.didFailWithError(BarcodeScannerError.permissionDenied)
++        })
++
++        present(alert, animated: true)
++    }
++}
++
++extension BarcodeScannerViewController: AVCaptureMetadataOutputObjectsDelegate {
++    func metadataOutput(_: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from _: AVCaptureConnection) {
++        captureSession.stopRunning()
++
++        if let metadataObject = metadataObjects.first {
++            guard let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject else { return }
++            guard let stringValue = readableObject.stringValue else { return }
++
++            // Provide haptic feedback with success animation
++            playHapticFeedback()
++            showSuccessAnimation()
++            delegate?.didScanBarcode(stringValue)
++        }
++    }
++
++    private func playHapticFeedback() {
++        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
++        impactFeedback.impactOccurred()
++    }
++
++    private func showSuccessAnimation() {
++        scanningView.layer.borderColor = UIColor.systemGreen.cgColor
++        scanningView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.2)
++
++        UIView.animate(withDuration: 0.3, animations: {
++            self.scanningView.alpha = 0.7
++        }) { _ in
++            UIView.animate(withDuration: 0.2) {
++                self.scanningView.alpha = 1.0
++            }
++        }
++    }
++}
++
++enum BarcodeScannerError: LocalizedError {
++    case cameraNotAvailable
++    case cannotAddInput
++    case cannotAddOutput
++    case userCancelled
++    case permissionDenied
++
++    var errorDescription: String? {
++        switch self {
++        case .cameraNotAvailable:
++            return "Camera not available"
++        case .cannotAddInput:
++            return "Cannot add camera input"
++        case .cannotAddOutput:
++            return "Cannot add metadata output"
++        case .userCancelled:
++            return "User cancelled scanning"
++        case .permissionDenied:
++            return "Camera permission denied"
++        }
++    }
++}
+diff --git a/Trio/Sources/Views/ScannedItemsView.swift b/Trio/Sources/Views/ScannedItemsView.swift
+new file mode 100644
+index 000000000..3dac613d3
+--- /dev/null
++++ b/Trio/Sources/Views/ScannedItemsView.swift
+@@ -0,0 +1,505 @@
++import SwiftUI
++import UIKit
++
++struct ScannedItemsView: View {
++    @Bindable var scannedMeal: Treatments.ScannedMealItems
++    @State private var showingScanner = false
++    @State private var scannedCode: String?
++    @State private var isLoading = false
++    @State private var errorMessage: String?
++    @State private var showingError = false
++    @State private var editingItem: Treatments.FoodItem?
++    @State private var customServingSize: String = ""
++    @State private var showDuplicateWarning = false
++    @State private var duplicateItemName: String = ""
++    @State private var pendingFoodItem: Treatments.FoodItem?
++
++    let onAddToTreatment: () -> Void
++
++    private static let numberFormatter: NumberFormatter = {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }()
++
++    var body: some View {
++        NavigationStack {
++            VStack(spacing: 0) {
++                // Header with scan button
++                headerView
++
++                if scannedMeal.hasItems {
++                    // Items list
++                    itemsList
++
++                    // Totals section
++                    totalsSection
++
++                    // Add to treatment button
++                    addToTreatmentButton
++                } else {
++                    // Empty state
++                    emptyStateView
++                }
++            }
++            .navigationTitle("Scanned Items")
++            .navigationBarTitleDisplayMode(.inline)
++            .sheet(isPresented: $showingScanner) {
++                BarcodeScannerView(scannedCode: $scannedCode, isPresented: $showingScanner)
++            }
++            .sheet(item: $editingItem) { item in
++                EditServingSizeView(
++                    item: item,
++                    customServingSize: $customServingSize,
++                    onSave: { updatedItem in
++                        updateItemServingSize(updatedItem)
++                    }
++                )
++            }
++            .alert("Error", isPresented: $showingError) {
++                Button("OK") {}
++            } message: {
++                Text(errorMessage ?? "Unknown error occurred")
++            }
++            .alert("Duplicate Item", isPresented: $showDuplicateWarning) {
++                Button("Add Anyway") {
++                    if let item = pendingFoodItem {
++                        scannedMeal.addItem(item)
++                        playSuccessHaptic()
++                    }
++                    pendingFoodItem = nil
++                }
++                Button("Cancel", role: .cancel) {
++                    pendingFoodItem = nil
++                }
++            } message: {
++                Text("\(duplicateItemName) is already in your list. Add another?")
++            }
++            .onChange(of: scannedCode) { _, newCode in
++                if let code = newCode {
++                    Task {
++                        await lookupFood(barcode: code)
++                    }
++                }
++            }
++            .overlay {
++                if isLoading {
++                    LoadingOverlay()
++                }
++            }
++        }
++    }
++
++    private var headerView: some View {
++        HStack {
++            Button(action: {
++                showingScanner = true
++            }) {
++                HStack {
++                    Image(systemName: "barcode.viewfinder")
++                    Text("Scan Barcode")
++                }
++                .foregroundColor(.white)
++                .padding()
++                .background(Color.blue)
++                .cornerRadius(10)
++            }
++
++            Spacer()
++
++            if scannedMeal.hasItems {
++                Button("Clear All") {
++                    scannedMeal.clearAll()
++                }
++                .foregroundColor(.red)
++            }
++        }
++        .padding()
++    }
++
++    private var itemsList: some View {
++        List {
++            ForEach(scannedMeal.items) { item in
++                FoodItemRow(item: item)
++                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
++                        Button(role: .destructive) {
++                            scannedMeal.removeItem(item)
++                        } label: {
++                            Label("Delete", systemImage: "trash")
++                        }
++                    }
++                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
++                        Button {
++                            editingItem = item
++                            customServingSize = String(item.servingSizeGrams ?? 100)
++                        } label: {
++                            Label("Edit", systemImage: "pencil")
++                        }
++                        .tint(.blue)
++                    }
++            }
++        }
++        .listStyle(PlainListStyle())
++    }
++
++    private var totalsSection: some View {
++        VStack(spacing: 8) {
++            Text("Totals")
++                .font(.headline)
++                .padding(.top)
++
++            HStack {
++                NutrientTotal(label: "Carbs", value: scannedMeal.totalCarbs, unit: "g")
++                Spacer()
++                NutrientTotal(label: "Protein", value: scannedMeal.totalProtein, unit: "g")
++                Spacer()
++                NutrientTotal(label: "Fat", value: scannedMeal.totalFat, unit: "g")
++            }
++            .padding(.horizontal)
++
++            if scannedMeal.totalCalories > 0 {
++                Text("Total Calories: \(Int(scannedMeal.totalCalories))")
++                    .font(.subheadline)
++                    .foregroundColor(.secondary)
++            }
++        }
++        .padding()
++        .background(Color(.systemGray6))
++        .cornerRadius(10)
++        .padding(.horizontal)
++    }
++
++    private var addToTreatmentButton: some View {
++        Button(action: onAddToTreatment) {
++            Text("Add to Treatment")
++                .font(.headline)
++                .foregroundColor(.white)
++                .frame(maxWidth: .infinity)
++                .padding()
++                .background(Color.green)
++                .cornerRadius(10)
++        }
++        .padding()
++    }
++
++    private var emptyStateView: some View {
++        VStack(spacing: 20) {
++            Spacer()
++
++            Image(systemName: "barcode")
++                .font(.system(size: 60))
++                .foregroundColor(.gray)
++
++            Text("No items scanned yet")
++                .font(.title2)
++                .foregroundColor(.secondary)
++
++            Text("Tap 'Scan Barcode' to add food items")
++                .font(.body)
++                .foregroundColor(.secondary)
++                .multilineTextAlignment(.center)
++
++            Spacer()
++        }
++        .padding()
++    }
++
++    private func lookupFood(barcode: String) async {
++        isLoading = true
++        errorMessage = nil
++
++        do {
++            if let foodItem = try await FoodDatabaseService.shared.lookupFood(barcode: barcode) {
++                await MainActor.run {
++                    // Check for duplicate barcode
++                    if let existingItem = scannedMeal.items.first(where: { $0.barcode == foodItem.barcode }) {
++                        duplicateItemName = existingItem.displayName
++                        pendingFoodItem = foodItem
++                        showDuplicateWarning = true
++                        playWarningHaptic()
++                    } else {
++                        scannedMeal.addItem(foodItem)
++                        playSuccessHaptic()
++                    }
++                }
++            } else {
++                await MainActor.run {
++                    errorMessage = "Product not found in database"
++                    showingError = true
++                    playErrorHaptic()
++                }
++            }
++        } catch {
++            await MainActor.run {
++                errorMessage = error.localizedDescription
++                showingError = true
++                playErrorHaptic()
++            }
++        }
++
++        await MainActor.run {
++            isLoading = false
++            scannedCode = nil
++        }
++    }
++
++    private func playSuccessHaptic() {
++        let feedback = UINotificationFeedbackGenerator()
++        feedback.notificationOccurred(.success)
++    }
++
++    private func playWarningHaptic() {
++        let feedback = UINotificationFeedbackGenerator()
++        feedback.notificationOccurred(.warning)
++    }
++
++    private func playErrorHaptic() {
++        let feedback = UINotificationFeedbackGenerator()
++        feedback.notificationOccurred(.error)
++    }
++
++    private func updateItemServingSize(_ updatedItem: Treatments.FoodItem) {
++        if let index = scannedMeal.items.firstIndex(where: { $0.id == updatedItem.id }) {
++            scannedMeal.items[index] = updatedItem
++        }
++    }
++}
++
++struct FoodItemRow: View {
++    let item: Treatments.FoodItem
++
++    private static let numberFormatter: NumberFormatter = {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }()
++
++    var body: some View {
++        VStack(alignment: .leading, spacing: 4) {
++            HStack {
++                VStack(alignment: .leading, spacing: 2) {
++                    Text(item.displayName)
++                        .font(.headline)
++                        .lineLimit(2)
++
++                    if let servingSize = item.servingSize {
++                        Text("Serving: \(servingSize)")
++                            .font(.caption)
++                            .foregroundColor(.secondary)
++                    }
++                }
++
++                Spacer()
++            }
++
++            HStack(spacing: 16) {
++                NutrientValue(label: "C", value: item.actualCarbs)
++                NutrientValue(label: "P", value: item.actualProtein)
++                NutrientValue(label: "F", value: item.actualFat)
++
++                Spacer()
++            }
++        }
++        .padding(.vertical, 4)
++    }
++}
++
++struct NutrientValue: View {
++    let label: String
++    let value: Double
++
++    private static let numberFormatter: NumberFormatter = {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }()
++
++    var body: some View {
++        VStack(spacing: 2) {
++            Text(label)
++                .font(.caption2)
++                .foregroundColor(.secondary)
++            Text(numberFormatter.string(from: NSNumber(value: value)) ?? "0")
++                .font(.caption)
++                .fontWeight(.medium)
++        }
++    }
++}
++
++struct NutrientTotal: View {
++    let label: String
++    let value: Double
++    let unit: String
++
++    private static let numberFormatter: NumberFormatter = {
++        let formatter = NumberFormatter()
++        formatter.numberStyle = .decimal
++        formatter.maximumFractionDigits = 1
++        return formatter
++    }()
++
++    var body: some View {
++        VStack(spacing: 4) {
++            Text(label)
++                .font(.subheadline)
++                .fontWeight(.medium)
++            Text("\(numberFormatter.string(from: NSNumber(value: value)) ?? "0") \(unit)")
++                .font(.title3)
++                .fontWeight(.bold)
++                .foregroundColor(.primary)
++        }
++    }
++}
++
++struct EditServingSizeView: View {
++    let item: Treatments.FoodItem
++    @Binding var customServingSize: String
++    let onSave: (Treatments.FoodItem) -> Void
++
++    @Environment(\.dismiss) private var dismiss
++    @State private var portions: Double = 1
++    @State private var gramsPerPortion: Double = 100
++    @State private var lastDelta: Double = 0
++    @State private var showDelta: Bool = false
++
++    var body: some View {
++        NavigationStack {
++            VStack(spacing: 20) {
++                Text(item.displayName)
++                    .font(.title2)
++                    .fontWeight(.medium)
++                    .multilineTextAlignment(.center)
++
++                VStack(alignment: .leading, spacing: 12) {
++                    // Portions selector (fractional, consistent with initial scan UI)
++                    HStack {
++                        Text("Portions")
++                            .font(.headline)
++                        Spacer()
++                        Stepper(value: $portions, in: 0.5 ... 50, step: 0.5) {
++                            Text(portions == floor(portions) ? "\(Int(portions))" : String(format: "%.1f", portions))
++                        }
++                        .labelsHidden()
++                        Spacer()
++                        Text("Per portion: \(Int(gramsPerPortion))g")
++                            .font(.subheadline)
++                            .foregroundColor(.secondary)
++                    }
++
++                    // Visual feedback for +/− movements
++                    if showDelta {
++                        Text(String(format: "%+.1f portions", lastDelta))
++                            .font(.caption)
++                            .padding(.horizontal, 8)
++                            .padding(.vertical, 4)
++                            .background(Color.blue.opacity(0.1))
++                            .cornerRadius(8)
++                            .transition(.opacity)
++                    }
++                }
++
++                let totalGrams = gramsPerPortion * portions
++                if totalGrams > 0 {
++                    let updatedItem = item.withServingSize(totalGrams)
++
++                    // Summary of selection
++                    HStack {
++                        Text(String(format: "Total: %.1f portions", portions))
++                            .font(.subheadline)
++                            .fontWeight(.medium)
++                        Spacer()
++                        Text("\(Int(totalGrams))g total")
++                            .font(.subheadline)
++                            .foregroundColor(.secondary)
++                    }
++
++                    VStack(spacing: 12) {
++                        Text("Nutritional Values")
++                            .font(.headline)
++
++                        HStack {
++                            NutrientTotal(label: "Carbs", value: updatedItem.actualCarbs, unit: "g")
++                            Spacer()
++                            NutrientTotal(label: "Protein", value: updatedItem.actualProtein, unit: "g")
++                            Spacer()
++                            NutrientTotal(label: "Fat", value: updatedItem.actualFat, unit: "g")
++                        }
++                    }
++                    .padding()
++                    .background(Color(.systemGray6))
++                    .cornerRadius(10)
++                }
++
++                Spacer()
++            }
++            .padding()
++            .navigationTitle("Edit Serving Size")
++            .navigationBarTitleDisplayMode(.inline)
++            .toolbar {
++                ToolbarItem(placement: .navigationBarLeading) {
++                    Button("Cancel") {
++                        dismiss()
++                    }
++                }
++
++                ToolbarItem(placement: .navigationBarTrailing) {
++                    Button("Save") {
++                        let totalGrams = gramsPerPortion * portions
++                        let updatedItem = item.withServingSize(totalGrams)
++                        onSave(updatedItem)
++                        dismiss()
++                    }
++                    .disabled(gramsPerPortion <= 0 || portions <= 0)
++                }
++            }
++            .onAppear {
++                // Initialize grams per portion from item or provided binding (default to product's serving size)
++                let initialGrams = Double(customServingSize) ?? item.servingSizeGrams ?? 100
++                gramsPerPortion = max(1, initialGrams)
++                portions = 1
++            }
++            .onChange(of: portions) { oldValue, newValue in
++                // Normalize to nearest 0.5 to keep values stable and reversible
++                let normalized = max(0.5, min(50, round(newValue * 2) / 2))
++                if normalized != newValue {
++                    portions = normalized
++                }
++                let oldNormalized = round(oldValue * 2) / 2
++                lastDelta = normalized - oldNormalized
++                withAnimation(.easeOut(duration: 0.2)) {
++                    showDelta = true
++                }
++                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
++                    withAnimation(.easeOut(duration: 0.2)) {
++                        showDelta = false
++                    }
++                }
++            }
++        }
++    }
++}
++
++struct LoadingOverlay: View {
++    var body: some View {
++        ZStack {
++            Color.black.opacity(0.3)
++                .ignoresSafeArea()
++
++            VStack(spacing: 16) {
++                ProgressView()
++                    .scaleEffect(1.5)
++
++                Text("Looking up product...")
++                    .font(.headline)
++                    .foregroundColor(.primary)
++            }
++            .padding(24)
++            .background(Color(.systemBackground))
++            .cornerRadius(12)
++            .shadow(radius: 10)
++        }
++    }
++}
+diff --git a/CLAUDE.md b/CLAUDE.md
+new file mode 100644
+index 0000000..b349754b9c14faa210d0643b9c4607cc211dd4b4
+--- /dev/null
++++ b/CLAUDE.md
+@@ -0,0 +1,     200 @@
++# CLAUDE.md - Project Context for AI Assistants
++
++## Project Overview
++
++This is a fork of **TRIO** (an open-source iOS artificial pancreas app) with a custom **Barcode Scanner** feature added for food tracking. The project tracks the upstream TRIO dev branch and merges custom barcode scanning functionality on top.
++
++## Repository Structure
++
++```
++Trio/
++├── Config.xcconfig              # App version (APP_DEV_VERSION)
++├── Trio.xcodeproj/              # Xcode project
++├── Trio/
++│   ├── Sources/
++│   │   ├── Views/
++│   │   │   ├── BarcodeScannerView.swift    # Camera barcode scanner UI
++│   │   │   ├── ScannedItemsView.swift      # Scanned food items list
++│   │   │   └── EditServingSizeView.swift   # Serving size editor
++│   │   ├── Services/
++│   │   │   └── FoodDatabaseService.swift   # OpenFoodFacts API integration
++│   │   └── Modules/
++│   │       └── Treatments/
++│   │           └── View/
++│   │               └── TreatmentsRootView.swift  # Where scanner is accessed
++│   └── Resources/
++├── patches/
++│   └── local-barcode-patches/   # Git patches for barcode scanner feature
++└── apply_patches.sh             # Script to apply patches to fresh upstream
++```
++
++## Key Branches
++
++- **`upstream/dev`** - TRIO's official dev branch (read-only, fetch only)
++- **`build-with-barcode`** - Main working branch with barcode scanner merged into latest upstream dev
++
++## Barcode Scanner Feature
++
++### Files Added
++1. **`BarcodeScannerView.swift`** - Camera-based barcode scanner with:
++   - Corner bracket visual guides
++   - Animated scan line (constraint-based, starts in `viewDidAppear`)
++   - Haptic feedback on successful scan
++   - Modern SF Symbol close button
++   - Accessibility labels (all UIKit strings via `NSLocalizedString`)
++
++2. **`ScannedItemsView.swift`** - Manages scanned food items:
++   - List of scanned items with nutritional info
++   - Duplicate detection with alerts
++   - Swipe to delete/edit
++   - Haptic feedback (success/warning/error)
++   - Serving size editing
++   - Uses `NavigationStack` (iOS 16+)
++   - `numberFormatter` is `static let` per struct (not recreated per render)
++
++3. **`FoodDatabaseService.swift`** - API integration:
++   - OpenFoodFacts API for nutritional data
++   - In-memory caching (NSCache)
++   - Network reachability monitoring
++   - Request timeout handling
++   - Comprehensive error handling and logging
++   - Falls back to non-`_100g` nutriment fields when `_100g` variants are absent
++
++4. **`EditServingSizeView.swift`** - Serving size adjustment (defined in `ScannedItemsView.swift`):
++   - Portion stepper (0.5-50 portions)
++   - Real-time nutritional value updates
++   - Input validation with warnings
++   - Uses `NavigationStack` (iOS 16+)
++
++### Barcode Types Supported
++- EAN-8, EAN-13, UPC-E
++- QR Code, PDF417, Aztec, DataMatrix
++- Code 128, Code 39, Code 93
++- Interleaved 2 of 5, ITF-14
++
++## Common Workflows
++
++### Updating to Latest Upstream Dev
++
++When TRIO releases a new dev version:
++
++```bash
++# 1. Fetch latest upstream
++git fetch upstream dev
++
++# 2. Check versions
++echo "Your version:" && grep 'APP_DEV_VERSION' Config.xcconfig
++echo "Latest:" && git show upstream/dev:Config.xcconfig | grep 'APP_DEV_VERSION'
++
++# 3. Merge if different
++git merge upstream/dev -m "Merge latest upstream/dev with barcode scanner"
++
++# 4. Verify compilation
++swiftc -parse Trio/Sources/Services/FoodDatabaseService.swift \
++       Trio/Sources/Views/BarcodeScannerView.swift \
++       Trio/Sources/Views/ScannedItemsView.swift
++
++# 5. Build in Xcode
++open Trio.xcodeproj
++```
++
++### Applying Patches to Fresh Upstream Clone
++
++If starting from a fresh TRIO clone:
++
++```bash
++# Copy patches directory and script
++cp -r patches /path/to/fresh/Trio/
++cp apply_patches.sh /path/to/fresh/Trio/
++
++# Run patch script
++cd /path/to/fresh/Trio
++./apply_patches.sh .
++```
++
++### Resolving Merge Conflicts
++
++If merge conflicts occur:
++1. Stash local changes: `git stash`
++2. Merge upstream: `git merge upstream/dev`
++3. For submodule conflicts: check out the upstream commit with `cd <submodule> && git checkout <upstream-commit-hash>`, then `git add <submodule>` from the repo root
++4. For file conflicts: Usually take upstream with `git checkout --theirs <file>`
++5. Restore stash: `git stash pop`
++
++> **Note:** `git checkout --theirs <submodule>` does not work for submodules — you must manually check out the correct commit inside the submodule directory.
++
++## Code Conventions
++
++### Swift Style
++- SwiftUI for views; use `NavigationStack` (not deprecated `NavigationView`)
++- UIKit for camera (AVFoundation requires UIViewController)
++- Async/await for network calls
++- Combine for reactive updates
++- `static let` for shared formatters (e.g. `NumberFormatter`) — never computed `var`
++
++### Localization
++- SwiftUI `Text("literal")` is automatically localized via `LocalizedStringKey`
++- UIKit strings must use `NSLocalizedString("key", comment: "...")`
++- All custom strings must have entries in `Trio/Sources/Localizations/Main/Localizable.xcstrings`
++- New xcstrings entries use `"extractionState": "manual"` and `"state": "new"` for non-English languages
++
++### Error Handling
++- Custom error enums with `LocalizedError` conformance
++- User-friendly error messages in alerts
++- Console logging for debugging
++
++### Haptic Feedback
++- `UINotificationFeedbackGenerator` for success/warning/error
++- `UIImpactFeedbackGenerator` for button taps
++
++### Accessibility
++- All interactive elements have `accessibilityLabel`
++- Minimum 44x44pt touch targets
++
++## Build Requirements
++
++- **Xcode:** Latest stable version
++- **iOS Target:** Check Trio.xcodeproj for minimum iOS version
++- **Signing:** Requires Apple Developer account and provisioning profile
++
++## Important Notes
++
++1. **Never push to upstream** - It's read-only (TRIO's official repo)
++2. **Keep patches updated** - When making changes to barcode scanner, consider updating patch files
++3. **Test after merges** - Always verify compilation after merging upstream
++4. **Submodules** - TRIO uses many submodules (DanaKit, LoopKit, etc.) - these may cause merge conflicts
++
++## Useful Commands
++
++```bash
++# Check current version
++grep 'APP_DEV_VERSION' Config.xcconfig
++
++# Verify barcode scanner compiles
++swiftc -parse Trio/Sources/Services/FoodDatabaseService.swift \
++       Trio/Sources/Views/BarcodeScannerView.swift \
++       Trio/Sources/Views/ScannedItemsView.swift
++
++# View recent upstream changes
++git log upstream/dev --oneline -10
++
++# Check what's different from upstream
++git diff upstream/dev --stat | head -20
++```
++
++## API Reference
++
++### OpenFoodFacts API
++- Base URL: `https://world.openfoodfacts.org/api/v0/product/{barcode}.json`
++- User-Agent: `TrioApp/1.0`
++- Timeout: 10 seconds
++- Returns: Product name, brand, nutritional info per 100g
++- Nutriment fields: prefer `*_100g` variants; fall back to plain variants (e.g. `carbohydrates_100g` → `carbohydrates`)
++
++## Future Enhancements (Recommended)
++
++1. **Flashlight toggle** - For low-light scanning
++2. **Manual barcode entry** - Fallback when camera fails
++3. **Continuous scanning** - Scan multiple items without closing
++4. **Favorites/History** - Quick access to frequently scanned items
++5. **Product images** - Display product photo from database
