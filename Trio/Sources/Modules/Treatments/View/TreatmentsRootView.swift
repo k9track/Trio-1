@@ -687,7 +687,13 @@ extension Treatments {
             }) {
                 MealPresetView(state: state)
             }
-            .sheet(isPresented: $showBarcodeScanner) {
+            .sheet(isPresented: $showBarcodeScanner, onDismiss: {
+                if let code = scannedCode {
+                    Task {
+                        await lookupFood(barcode: code)
+                    }
+                }
+            }) {
                 BarcodeScannerView(scannedCode: $scannedCode, isPresented: $showBarcodeScanner)
             }
             .sheet(isPresented: $showScannedItemsSheet) {
@@ -707,13 +713,6 @@ extension Treatments {
                         showScannedItemsSheet = true
                     }
                 )
-            }
-            .onChange(of: scannedCode) { _, newCode in
-                if let code = newCode {
-                    Task {
-                        await lookupFood(barcode: code)
-                    }
-                }
             }
             .alert("Error while processing Treatment", isPresented: $state.showDeterminationFailureAlert) {
                 Button("OK", role: .cancel) {

@@ -45,7 +45,13 @@ struct ScannedItemsView: View {
             }
             .navigationTitle("Scanned Items")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingScanner) {
+            .sheet(isPresented: $showingScanner, onDismiss: {
+                if let code = scannedCode {
+                    Task {
+                        await lookupFood(barcode: code)
+                    }
+                }
+            }) {
                 BarcodeScannerView(scannedCode: $scannedCode, isPresented: $showingScanner)
             }
             .sheet(item: $editingItem) { item in
@@ -75,13 +81,6 @@ struct ScannedItemsView: View {
                 }
             } message: {
                 Text("\(duplicateItemName) is already in your list. Add another?")
-            }
-            .onChange(of: scannedCode) { _, newCode in
-                if let code = newCode {
-                    Task {
-                        await lookupFood(barcode: code)
-                    }
-                }
             }
             .overlay {
                 if isLoading {
