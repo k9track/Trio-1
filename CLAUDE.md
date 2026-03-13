@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a fork of **TRIO** (an open-source iOS artificial pancreas app) with a custom **Barcode Scanner** feature added for food tracking. The project tracks the upstream TRIO dev branch and merges custom barcode scanning functionality on top.
+This is a fork of **TRIO** (an open-source iOS artificial pancreas app) with a custom **Barcode Scanner** feature and **Eversense CGM** support added. The project tracks the upstream TRIO dev branch and merges custom functionality on top.
 
 ## Repository Structure
 
@@ -23,6 +23,7 @@ Trio/
 │   │           └── View/
 │   │               └── TreatmentsRootView.swift  # Where scanner is accessed
 │   └── Resources/
+├── EversenseKit/                # Eversense CGM submodule (github.com/bastiaanv/EversenseKit)
 ├── patches/
 │   └── local-barcode-patches/   # Git patches for barcode scanner feature
 └── apply_patches.sh             # Script to apply patches to fresh upstream
@@ -32,6 +33,26 @@ Trio/
 
 - **`upstream/dev`** - TRIO's official dev branch (read-only, fetch only)
 - **`build-with-barcode`** - Main working branch with barcode scanner merged into latest upstream dev
+
+## Eversense CGM Feature
+
+### Overview
+Eversense (Senseonics) implantable CGM support via the [EversenseKit](https://github.com/bastiaanv/EversenseKit) submodule (branch: `dev`). Supports both Eversense E3 and Eversense 365 sensors.
+
+### Integration Points
+- **`EversenseKit/`** - Git submodule providing `EversenseCGMManager` (conforms to LoopKit's `CGMManager` + `CGMManagerUI`)
+- **`PluginManager.swift`** - Registered as a CGM option with identifier `"EversenseKit"` and title `"Eversense"`
+- **`PluginSource.swift`** - Sensor info extraction: `state.activatedAt` for SAGE, `state.bleNameString` for transmitter ID
+
+### Dependencies
+- **CryptoSwift** (SPM) - Required by EversenseKit for transmitter encryption/decryption
+- **LoopKit / LoopKitUI** - CGMManager protocol conformance
+
+### Xcode Setup Required
+After cloning, the EversenseKit frameworks must be linked in Xcode:
+1. Add `EversenseKit.xcodeproj` as a sub-project
+2. Add CryptoSwift SPM dependency (`https://github.com/krzyzanowskim/CryptoSwift`)
+3. Link and embed `EversenseKit.framework` and `EversenseKitUI.framework` (Embed & Sign)
 
 ## Barcode Scanner Feature
 
@@ -162,7 +183,7 @@ If merge conflicts occur:
 1. **Never push to upstream** - It's read-only (TRIO's official repo)
 2. **Keep patches updated** - When making changes to barcode scanner, consider updating patch files
 3. **Test after merges** - Always verify compilation after merging upstream
-4. **Submodules** - TRIO uses many submodules (DanaKit, LoopKit, etc.) - these may cause merge conflicts
+4. **Submodules** - TRIO uses many submodules (DanaKit, LoopKit, EversenseKit, etc.) - these may cause merge conflicts
 
 ## Useful Commands
 

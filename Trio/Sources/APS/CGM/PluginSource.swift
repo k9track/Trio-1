@@ -1,5 +1,6 @@
 import CGMBLEKit
 import Combine
+import EversenseKit
 import Foundation
 import G7SensorKit
 import LibreTransmitter
@@ -229,6 +230,10 @@ extension PluginSource: CGMManagerDelegate {
                 sensorActivatedAt = cgmTransmitterManager.sensorActivatedAt
                 sensorStartDate = cgmTransmitterManager.sensorActivatedAt
                 sensorTransmitterID = cgmTransmitterManager.sensorName
+            } else if let cgmTransmitterManager = cgmManager as? EversenseCGMManager {
+                sensorActivatedAt = cgmTransmitterManager.state.activatedAt
+                sensorStartDate = cgmTransmitterManager.state.activatedAt
+                sensorTransmitterID = cgmTransmitterManager.state.bleNameString
             }
 
             let bloodGlucose = values.compactMap { newGlucoseSample -> BloodGlucose? in
