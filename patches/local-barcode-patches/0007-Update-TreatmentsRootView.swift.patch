@@ -1,0 +1,26 @@
+From 2916b1c7a9608604965c9ee9d70186ef825534a4 Mon Sep 17 00:00:00 2001
+From: Nathan Solis <k9track@gmail.com>
+Date: Sun, 5 Oct 2025 11:49:33 -0600
+Subject: [PATCH 07/10] Update TreatmentsRootView.swift
+
+---
+ Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift b/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
+index 64acc4068..5bfd670da 100644
+--- a/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
++++ b/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
+@@ -301,6 +301,9 @@ extension Treatments {
+                 await MainActor.run {
+                     // Handle error case
+                     print("Error looking up food: \(error.localizedDescription)")
++                    // Treat invalid or lookup errors the same as not found for UX consistency
++                    showBarcodeScanner = false
++                    showBarcodeNotFoundAlert = true
+                 }
+             }
+ 
+-- 
+2.48.1
+

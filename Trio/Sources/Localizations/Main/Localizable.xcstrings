@@ -1041,6 +1041,121 @@
         }
       }
     },
+    "Try Again" : {
+
+    },
+    "Trio Glucose" : {
+
+    },
+    "Trio --" : {
+
+    },
+    "Totals" : {
+
+    },
+    "Total Calories: %lld" : {
+
+    },
+    "Tap 'Scan Barcode' to add food items" : {
+
+    },
+    "Serving: %@" : {
+
+    },
+    "Scanned Items" : {
+
+    },
+    "Scan Food Items" : {
+
+    },
+    "Scan Barcode" : {
+
+    },
+    "Save & Default" : {
+
+    },
+    "Product not found" : {
+
+    },
+    "Position the barcode within this frame to scan" : {
+      "comment" : "Accessibility hint for the barcode scanning frame"
+    },
+    "Portions" : {
+
+    },
+    "Per portion: %lldg" : {
+
+    },
+    "Nutritional Values" : {
+
+    },
+    "No product found for that barcode. Please try again." : {
+
+    },
+    "No items scanned yet" : {
+
+    },
+    "Looking up product..." : {
+
+    },
+    "Live glucose readout for your watch face" : {
+
+    },
+    "Enable camera access in Settings to scan barcodes." : {
+      "comment" : "Camera permission alert message"
+    },
+    "Edit Serving Size" : {
+
+    },
+    "Duplicate Item" : {
+
+    },
+    "Dismiss the barcode scanning interface" : {
+      "comment" : "Accessibility hint for the close button in the barcode scanner"
+    },
+    "Close barcode scanner" : {
+      "comment" : "Accessibility label for the close button in the barcode scanner"
+    },
+    "Clear All" : {
+
+    },
+    "Camera Access Needed" : {
+      "comment" : "Camera permission alert title"
+    },
+    "C: %@g" : {
+
+    },
+    "Barcode scanning area" : {
+      "comment" : "Accessibility label for the barcode scanning frame"
+    },
+    "Align barcode in the frame" : {
+      "comment" : "Instruction label in the barcode scanner view"
+    },
+    "Add to Treatment" : {
+
+    },
+    "Add Anyway" : {
+
+    },
+    "%lldg total" : {
+
+    },
+    "%lld items" : {
+
+    },
+    "%@ is already in your list. Add another?" : {
+
+    },
+    "%@ %@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@ %3$@"
+          }
+        }
+      }
+    },
     " " : {
       "localizations" : {
         "bg" : {

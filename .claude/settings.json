@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git submodule status DanaKit)",
+      "Bash(git ls-tree MERGE_HEAD DanaKit)",
+      "Bash(git config user.name)",
+      "Bash(git config user.email)"
+    ]
+  }
+}

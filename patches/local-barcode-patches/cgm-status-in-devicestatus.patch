@@ -1,0 +1,106 @@
+diff --git a/Trio/Sources/Models/NightscoutStatus.swift b/Trio/Sources/Models/NightscoutStatus.swift
+index 6212c61b0..712df628e 100644
+--- a/Trio/Sources/Models/NightscoutStatus.swift
++++ b/Trio/Sources/Models/NightscoutStatus.swift
+@@ -5,6 +5,14 @@ struct NightscoutStatus: JSON {
+     let openaps: OpenAPSStatus
+     let pump: NSPumpStatus
+     let uploader: Uploader
++    let cgm: NSCGMStatus?
++}
++
++struct NSCGMStatus: JSON {
++    let sensorType: String
++    let sensorActivatedAt: Date?
++    let sessionStartDate: Date?
++    let transmitterID: String?
+ }
+ 
+ struct OpenAPSStatus: JSON {
+diff --git a/Trio/Sources/Services/Network/Nightscout/NightscoutManager.swift b/Trio/Sources/Services/Network/Nightscout/NightscoutManager.swift
+index 70dfbb3ca..38786094c 100644
+--- a/Trio/Sources/Services/Network/Nightscout/NightscoutManager.swift
++++ b/Trio/Sources/Services/Network/Nightscout/NightscoutManager.swift
+@@ -1,6 +1,10 @@
++import CGMBLEKit
+ import Combine
+ import CoreData
++import EversenseKit
+ import Foundation
++import G7SensorKit
++import LibreTransmitter
+ import LoopKitUI
+ import Swinject
+ import UIKit
+@@ -393,6 +397,56 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
+     /// pump battery and reservoir levels, insulin-on-board (IOB), and the uploader's battery status. It ensures that only
+     /// valid determinations are uploaded by filtering out duplicates and handling unit conversions based on the user's
+     /// settings. If the status upload is successful, it updates the determination storage to mark them as uploaded.
++    /// Extracts CGM sensor information from the active CGM manager.
++    /// Mirrors the type-checking pattern in `PluginSource.readCGMResult()`.
++    private func fetchCGMStatus() -> NSCGMStatus? {
++        // Resolve lazily to avoid circular dependency during injection
++        guard let fetchGlucose = TrioApp.resolver.resolve(FetchGlucoseManager.self),
++              let cgm = fetchGlucose.cgmManager else { return nil }
++
++        var sensorActivatedAt: Date?
++        var sessionStartDate: Date?
++        var transmitterID: String?
++        var sensorType: String = "Unknown"
++
++        if let manager = cgm as? LibreTransmitterManagerV3 {
++            let info = manager.sensorInfoObservable
++            sensorActivatedAt = info.activatedAt
++            sessionStartDate = info.activatedAt
++            transmitterID = info.sensorSerial
++            sensorType = "FreeStyle Libre"
++        } else if let manager = cgm as? G5CGMManager {
++            let reading = manager.latestReading
++            sensorActivatedAt = reading?.activationDate
++            sessionStartDate = reading?.sessionStartDate
++            transmitterID = reading?.transmitterID
++            sensorType = "Dexcom G5"
++        } else if let manager = cgm as? G6CGMManager {
++            let reading = manager.latestReading
++            sensorActivatedAt = reading?.activationDate
++            sessionStartDate = reading?.sessionStartDate
++            transmitterID = reading?.transmitterID
++            sensorType = "Dexcom G6"
++        } else if let manager = cgm as? G7CGMManager {
++            sensorActivatedAt = manager.sensorActivatedAt
++            sessionStartDate = manager.sensorActivatedAt
++            transmitterID = manager.sensorName
++            sensorType = "Dexcom G7"
++        } else if let manager = cgm as? EversenseCGMManager {
++            sensorActivatedAt = manager.state.activatedAt
++            sessionStartDate = manager.state.activatedAt
++            transmitterID = manager.state.bleNameString
++            sensorType = "Eversense"
++        }
++
++        return NSCGMStatus(
++            sensorType: sensorType,
++            sensorActivatedAt: sensorActivatedAt,
++            sessionStartDate: sessionStartDate,
++            transmitterID: transmitterID
++        )
++    }
++
+     ///
+     /// Key steps:
+     /// - Fetch the last unuploaded enacted and suggested determinations from the storage.
+@@ -551,11 +605,13 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
+             battery: Int(batteryLevel * 100),
+             isCharging: batteryState == .charging || batteryState == .full
+         )
++        let cgmStatus = fetchCGMStatus()
+         let status = NightscoutStatus(
+             device: NightscoutTreatment.local,
+             openaps: openapsStatus,
+             pump: pump,
+-            uploader: uploader
++            uploader: uploader,
++            cgm: cgmStatus
+         )
+ 
+         do {

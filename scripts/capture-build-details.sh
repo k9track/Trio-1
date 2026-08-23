@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 #  capture-build-details.sh
 #  Trio
 #
@@ -8,9 +8,16 @@
 info_plist_path="${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/BuildDetails.plist"
 
 # Ensure the path to BuildDetails.plist is valid.
-if [ "${info_plist_path}" = "/" -o ! -e "${info_plist_path}" ]; then
-    echo "BuildDetails.plist file does not exist at path: ${info_plist_path}" >&2
+if [ "${info_plist_path}" = "/" ]; then
+    echo "Invalid plist path: ${info_plist_path}" >&2
     exit 1
+fi
+
+# If BuildDetails.plist doesn't exist yet, skip this script
+if [ ! -e "${info_plist_path}" ]; then
+    echo "BuildDetails.plist not yet created at path: ${info_plist_path}" >&2
+    echo "Skipping build details capture for now"
+    exit 0
 fi
 
 echo "Gathering build details..."

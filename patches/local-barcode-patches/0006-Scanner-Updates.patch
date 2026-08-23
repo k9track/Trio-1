@@ -1,0 +1,85 @@
+From 569aff7b8555d17e44a6d1630736c34220a74a1f Mon Sep 17 00:00:00 2001
+From: Nathan Solis <k9track@gmail.com>
+Date: Sun, 5 Oct 2025 11:47:33 -0600
+Subject: [PATCH 06/10] Scanner Updates
+
+Added the not found option with retry or cancel
+---
+ .../Sources/Localizations/Main/Localizable.xcstrings |  9 +++++++++
+ .../Modules/Treatments/View/TreatmentsRootView.swift | 12 ++++++++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/Trio/Sources/Localizations/Main/Localizable.xcstrings b/Trio/Sources/Localizations/Main/Localizable.xcstrings
+index b9722fa9a..ad083772e 100644
+--- a/Trio/Sources/Localizations/Main/Localizable.xcstrings
++++ b/Trio/Sources/Localizations/Main/Localizable.xcstrings
+@@ -147782,6 +147782,9 @@
+           }
+         }
+       }
++    },
++    "No product found for that barcode. Please try again." : {
++
+     },
+     "No recent oref algorithm determination." : {
+       "localizations" : {
+@@ -164912,6 +164915,9 @@
+           }
+         }
+       }
++    },
++    "Product not found" : {
++
+     },
+     "profile" : {
+       "localizations" : {
+@@ -223510,6 +223516,9 @@
+           }
+         }
+       }
++    },
++    "Try Again" : {
++
+     },
+     "Try again in a moment, or configure your Therapy Settings manually instead." : {
+       "localizations" : {
+diff --git a/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift b/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
+index fe0f70bc0..64acc4068 100644
+--- a/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
++++ b/Trio/Sources/Modules/Treatments/View/TreatmentsRootView.swift
+@@ -190,6 +190,7 @@ extension Treatments {
+         @State private var showBarcodeScanner = false
+         @State private var scannedCode: String?
+         @State private var scannedMeal = ScannedMealItems()
++        @State private var showBarcodeNotFoundAlert = false
+         // Serving size editor states
+         @State private var editingItem: FoodItem?
+         @State private var customServingSize: String = ""
+@@ -291,6 +292,9 @@ extension Treatments {
+                     await MainActor.run {
+                         // Handle case where product is not found
+                         print("Product not found in database")
++                        // Dismiss scanner and show a user-facing alert with options
++                        showBarcodeScanner = false
++                        showBarcodeNotFoundAlert = true
+                     }
+                 }
+             } catch {
+@@ -693,6 +697,14 @@ extension Treatments {
+             } message: {
+                 Text("\(state.determinationFailureMessage)")
+             }
++            .alert(String(localized: "Product not found"), isPresented: $showBarcodeNotFoundAlert) {
++                Button(String(localized: "Try Again")) {
++                    showBarcodeScanner = true
++                }
++                Button(String(localized: "Cancel"), role: .cancel) {}
++            } message: {
++                Text(String(localized: "No product found for that barcode. Please try again."))
++            }
+         }
+ 
+         var progressText: ProgressText {
+-- 
+2.48.1
+

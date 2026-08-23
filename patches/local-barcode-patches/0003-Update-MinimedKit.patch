@@ -1,0 +1,19 @@
+From b42bffcb10393b06f854783182a6d30b6a36554f Mon Sep 17 00:00:00 2001
+From: Nathan Solis <k9track@gmail.com>
+Date: Thu, 2 Oct 2025 08:54:12 -0600
+Subject: [PATCH 03/10] Update MinimedKit
+
+---
+ MinimedKit | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/MinimedKit b/MinimedKit
+index d36725441..0d6328ade 160000
+--- a/MinimedKit
++++ b/MinimedKit
+@@ -1 +1 @@
+-Subproject commit d367254415691ef1835cfd70a3af390b0a6aad81
++Subproject commit 0d6328ade45c344fad2affc5b4cb3640734ea68b
+-- 
+2.48.1
+

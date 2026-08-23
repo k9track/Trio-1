@@ -540,6 +540,11 @@
 		DD09D5C92D29F3D0000D82C9 /* AcknowledgementPendingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D5C82D29F3D0000D82C9 /* AcknowledgementPendingView.swift */; };
 		DD09D6442D2B553A000D82C9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DD09D6412D2B553A000D82C9 /* Assets.xcassets */; };
 		DD09D6462D2B553A000D82C9 /* TrioWatchComplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D6432D2B553A000D82C9 /* TrioWatchComplication.swift */; };
+		DD09D6672D2B553A000D82C9 /* ComplicationShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D6652D2B553A000D82C9 /* ComplicationShared.swift */; };
+		BDFF79A22D25AA870016C40C /* ComplicationShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFF79A12D25AA870016C40C /* ComplicationShared.swift */; };
+		DD09D66C2D2B553A000D82C9 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D6692D2B553A000D82C9 /* BarcodeScannerView.swift */; };
+		DD09D66D2D2B553A000D82C9 /* ScannedItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D66A2D2B553A000D82C9 /* ScannedItemsView.swift */; };
+		DD09D66E2D2B553A000D82C9 /* FoodDatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D66B2D2B553A000D82C9 /* FoodDatabaseService.swift */; };
 		DD1745132C54169400211FAC /* DevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745122C54169400211FAC /* DevicesView.swift */; };
 		DD1745152C54388A00211FAC /* TherapySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745142C54388A00211FAC /* TherapySettingsView.swift */; };
 		DD1745172C54389F00211FAC /* FeatureSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745162C54389F00211FAC /* FeatureSettingsView.swift */; };
@@ -1407,6 +1412,8 @@
 		DD09D6412D2B553A000D82C9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DD09D6422D2B553A000D82C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DD09D6432D2B553A000D82C9 /* TrioWatchComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrioWatchComplication.swift; sourceTree = "<group>"; };
+		DD09D6652D2B553A000D82C9 /* ComplicationShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComplicationShared.swift; sourceTree = "<group>"; };
+		BDFF79A12D25AA870016C40C /* ComplicationShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComplicationShared.swift; sourceTree = "<group>"; };
 		DD1745122C54169400211FAC /* DevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicesView.swift; sourceTree = "<group>"; };
 		DD1745142C54388A00211FAC /* TherapySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TherapySettingsView.swift; sourceTree = "<group>"; };
 		DD1745162C54389F00211FAC /* FeatureSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureSettingsView.swift; sourceTree = "<group>"; };
@@ -1418,6 +1425,9 @@
 		DD1745252C55526F00211FAC /* SMBSettingsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMBSettingsRootView.swift; sourceTree = "<group>"; };
 		DD1745282C55642100211FAC /* SettingInputSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingInputSection.swift; sourceTree = "<group>"; };
 		48B83503461B4F8D97B30115 /* SettingsSearchHighlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSearchHighlight.swift; sourceTree = "<group>"; };
+		DD09D6692D2B553A000D82C9 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Trio/Sources/Views/BarcodeScannerView.swift"; sourceTree = SOURCE_ROOT; };
+		DD09D66A2D2B553A000D82C9 /* ScannedItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Trio/Sources/Views/ScannedItemsView.swift"; sourceTree = SOURCE_ROOT; };
+		DD09D66B2D2B553A000D82C9 /* FoodDatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Trio/Sources/Services/FoodDatabaseService.swift"; sourceTree = SOURCE_ROOT; };
 		DD17452A2C556E8100211FAC /* SettingInputHintView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingInputHintView.swift; sourceTree = "<group>"; };
 		DD17452D2C55AE4800211FAC /* TargetBehavoirDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetBehavoirDataFlow.swift; sourceTree = "<group>"; };
 		DD17452F2C55AE5300211FAC /* TargetBehaviorProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetBehaviorProvider.swift; sourceTree = "<group>"; };
@@ -3196,6 +3206,7 @@
 		BDFF7A9C2D25FA730016C40C /* Trio Watch App Extension */ = {
 			isa = PBXGroup;
 			children = (
+				BDFF79A12D25AA870016C40C /* ComplicationShared.swift */,
 				DDFF204D2DB2C00B00AB8A96 /* WatchStateSnapshot.swift */,
 				DDFF20492DB29EF500AB8A96 /* WatchLogger.swift */,
 				BDA25EE52D260D5800035F34 /* WatchState.swift */,
@@ -3417,6 +3428,7 @@
 				DD09D6412D2B553A000D82C9 /* Assets.xcassets */,
 				DD09D6422D2B553A000D82C9 /* Info.plist */,
 				DD09D6432D2B553A000D82C9 /* TrioWatchComplication.swift */,
+				DD09D6652D2B553A000D82C9 /* ComplicationShared.swift */,
 			);
 			path = "Trio Watch Complication";
 			sourceTree = "<group>";
@@ -4855,6 +4867,9 @@
 				DD1745202C55523E00211FAC /* SMBSettingsDataFlow.swift in Sources */,
 				D6D02515BBFBE64FEBE89856 /* HistoryRootView.swift in Sources */,
 				DD1745292C55642100211FAC /* SettingInputSection.swift in Sources */,
+				DD09D66C2D2B553A000D82C9 /* BarcodeScannerView.swift in Sources */,
+				DD09D66D2D2B553A000D82C9 /* ScannedItemsView.swift in Sources */,
+				DD09D66E2D2B553A000D82C9 /* FoodDatabaseService.swift in Sources */,
 				38569349270B5DFB0002C50D /* AppGroupSource.swift in Sources */,
 				F5CA3DB1F9DC8B05792BBFAA /* CGMSettingsDataFlow.swift in Sources */,
 				BDF34F952C10D27300D51995 /* DeterminationData.swift in Sources */,
@@ -4983,6 +4998,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD09D6462D2B553A000D82C9 /* TrioWatchComplication.swift in Sources */,
+				DD09D6672D2B553A000D82C9 /* ComplicationShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4990,6 +5006,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BDFF79A22D25AA870016C40C /* ComplicationShared.swift in Sources */,
 				BDA25F222D26D62800035F34 /* BolusInputView.swift in Sources */,
 				BDFF7A882D25F97D0016C40C /* TrioMainWatchView.swift in Sources */,
 				BDA25F202D26D5FE00035F34 /* CarbsInputView.swift in Sources */,

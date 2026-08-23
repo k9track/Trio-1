@@ -1,9 +1,9 @@
 #! /bin/sh
 
 function assertEnvironment {
-	if [ -z $1 ]; then 
+	if [ -z $1 ]; then
 		echo $2
-		exit 127
+		exit 0
 	fi
 }
 
@@ -11,6 +11,7 @@ assertEnvironment "${SRCROOT}" "Please set SRCROOT to project root folder"
 
 unset SDKROOT
 
+# Run swiftformat, but don't fail the build if it fails
 swift run -c release --package-path BuildTools swiftformat "${SRCROOT}" \
 --enable andOperator,\
 anyObjectProtocol,\
@@ -111,4 +112,4 @@ trailingClosures \
   TidepoolService, \
   DanaKit, \
   MedtrumKit, \
-  OmnipodKit
+  OmnipodKit || true

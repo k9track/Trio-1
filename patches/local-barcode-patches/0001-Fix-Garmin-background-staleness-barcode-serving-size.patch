@@ -1,0 +1,318 @@
+From 1dfbfc9f8c61dee9cdd83634149e2be61dccbfd6 Mon Sep 17 00:00:00 2001
+From: Nathan Solis <k9track@gmail.com>
+Date: Fri, 1 May 2026 11:34:27 -0600
+Subject: [PATCH] Fix Garmin background staleness + barcode serving-size
+ accuracy
+
+GarminManager: subscribe to UIApplication foreground/active notifications
+and trigger a fresh watch push on resume. While Trio is suspended its
+publishers stop firing and ConnectIQ delivery is gated, so the watch went
+stale until the user manually relaunched the app. Clears lastSentDataHash
+on resume so dedup can't suppress the first push.
+
+FoodDatabaseService: prefer OpenFoodFacts' structured serving_quantity
+field over the free-text serving_size string (which often contains the
+package weight rather than a serving). Suspiciously large values (>250g)
+are dropped so the UI defaults to 100g for the user to adjust. Adds
+os_log diagnostics on every lookup. Removes dead duplicate
+EditServingSizeView.swift that wasn't in the xcode project and didn't
+compile against the current FoodItem type.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+---
+ .../Services/FoodDatabaseService.swift        |  73 +++++++++++-
+ .../Services/WatchManager/GarminManager.swift |  25 ++++
+ Trio/Sources/Views/EditServingSizeView.swift  | 109 ------------------
+ 3 files changed, 96 insertions(+), 111 deletions(-)
+ delete mode 100644 Trio/Sources/Views/EditServingSizeView.swift
+
+diff --git a/Trio/Sources/Services/FoodDatabaseService.swift b/Trio/Sources/Services/FoodDatabaseService.swift
+index 16184872a..e94b6055f 100644
+--- a/Trio/Sources/Services/FoodDatabaseService.swift
++++ b/Trio/Sources/Services/FoodDatabaseService.swift
+@@ -1,10 +1,16 @@
+ import Foundation
+ import Network
++import os.log
+ 
+ /// Service for looking up food nutritional information from barcodes
+ class FoodDatabaseService {
+     static let shared = FoodDatabaseService()
+ 
++    /// Servings parsed from OpenFoodFacts above this size are treated as suspect
++    /// (often the package weight rather than a single serving) and ignored.
++    private static let suspiciousServingSizeGrams: Double = 250
++
++    private let log = OSLog(subsystem: "Trio.BarcodeScanner", category: "FoodDatabase")
+     private let cache = NSCache<NSString, CachedFoodItem>()
+     private let monitor = NWPathMonitor()
+     private var isNetworkAvailable = true
+@@ -27,8 +33,11 @@ class FoodDatabaseService {
+             throw FoodDatabaseError.invalidBarcode
+         }
+ 
++        os_log("lookup barcode=%{public}@", log: log, type: .info, barcode)
++
+         // Check cache first
+         if let cachedItem = cache.object(forKey: barcode as NSString) {
++            os_log("cache hit for barcode=%{public}@", log: log, type: .debug, barcode)
+             return cachedItem.foodItem
+         }
+ 
+@@ -94,9 +103,17 @@ class FoodDatabaseService {
+         let fat = nutriments.fat_100g ?? nutriments.fat ?? 0.0
+         let calories = nutriments.energy_kcal_100g ?? nutriments.energy_kcal ?? 0.0
+ 
+-        // Try to get serving size from the product
+         let servingSize = product.serving_size
+-        let servingSizeGrams = parseServingSize(servingSize)
++        let servingSizeGrams = resolveServingSizeGrams(product: product)
++
++        os_log(
++            "parsed barcode=%{public}@ name=%{public}@ carbs/100g=%.1f protein/100g=%.1f fat/100g=%.1f serving_size=%{public}@ serving_quantity=%.1f resolvedGrams=%.1f",
++            log: log, type: .info,
++            barcode, name, carbs, protein, fat,
++            servingSize ?? "nil",
++            product.serving_quantity?.value ?? -1,
++            servingSizeGrams ?? -1
++        )
+ 
+         return Treatments.FoodItem(
+             barcode: barcode,
+@@ -111,6 +128,34 @@ class FoodDatabaseService {
+         )
+     }
+ 
++    /// Pick a serving size in grams, preferring OpenFoodFacts' structured numeric
++    /// `serving_quantity` over the free-text `serving_size` string. Suspiciously
++    /// large values (commonly the package weight masquerading as a serving) are
++    /// dropped so the UI defaults to 100g and the user adjusts from there.
++    private func resolveServingSizeGrams(product: OpenFoodFactsProduct) -> Double? {
++        if let qty = product.serving_quantity?.value, qty > 0 {
++            let unit = product.serving_quantity_unit?.lowercased() ?? "g"
++            if unit == "g" || unit.hasPrefix("gram") {
++                return acceptIfReasonable(qty, source: "serving_quantity")
++            }
++        }
++        if let parsed = parseServingSize(product.serving_size) {
++            return acceptIfReasonable(parsed, source: "serving_size string")
++        }
++        return nil
++    }
++
++    private func acceptIfReasonable(_ grams: Double, source: String) -> Double? {
++        if grams > Self.suspiciousServingSizeGrams {
++            os_log(
++                "ignoring suspicious serving size %.1fg from %{public}@; UI will default to 100g",
++                log: log, type: .info, grams, source
++            )
++            return nil
++        }
++        return grams
++    }
++
+     private func parseServingSize(_ servingSize: String?) -> Double? {
+         guard let servingSize = servingSize else { return nil }
+ 
+@@ -151,9 +196,33 @@ struct OpenFoodFactsProduct: Codable {
+     let product_name_en: String?
+     let brands: String?
+     let serving_size: String?
++    let serving_quantity: FlexibleDouble?
++    let serving_quantity_unit: String?
+     let nutriments: OpenFoodFactsNutriments?
+ }
+ 
++/// `serving_quantity` is sometimes returned as a JSON number and sometimes as a
++/// numeric string; accept either.
++struct FlexibleDouble: Codable {
++    let value: Double?
++
++    init(from decoder: Decoder) throws {
++        let container = try decoder.singleValueContainer()
++        if let d = try? container.decode(Double.self) {
++            value = d
++        } else if let s = try? container.decode(String.self) {
++            value = Double(s)
++        } else {
++            value = nil
++        }
++    }
++
++    func encode(to encoder: Encoder) throws {
++        var container = encoder.singleValueContainer()
++        try container.encode(value)
++    }
++}
++
+ struct OpenFoodFactsNutriments: Codable {
+     let carbohydrates_100g: Double?
+     let proteins_100g: Double?
+diff --git a/Trio/Sources/Services/WatchManager/GarminManager.swift b/Trio/Sources/Services/WatchManager/GarminManager.swift
+index 306329e6a..51eedddfe 100644
+--- a/Trio/Sources/Services/WatchManager/GarminManager.swift
++++ b/Trio/Sources/Services/WatchManager/GarminManager.swift
+@@ -3,6 +3,7 @@ import ConnectIQ
+ import CoreData
+ import Foundation
+ import Swinject
++import UIKit
+ 
+ // MARK: - GarminManager Protocol
+ 
+@@ -189,6 +190,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
+ 
+         subscribeToOpenFromGarminConnect()
+         subscribeToWatchState()
++        subscribeToAppLifecycle()
+ 
+         units = settingsManager.settings.units
+         previousGarminSettings = settingsManager.settings.garminSettings
+@@ -824,6 +826,29 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
+             .store(in: &cancellables)
+     }
+ 
++    /// Subscribes to app foreground lifecycle so the watch gets a fresh push when
++    /// Trio resumes. While Trio is suspended, the CoreData / glucose / IOB publishers
++    /// stop firing and ConnectIQ delivery is gated, so the watch stays stale until
++    /// the user re-opens the app. We force-trigger an update on every foreground.
++    ///
++    /// `lastSentDataHash` is cleared so the first push after resume isn't suppressed
++    /// by content-based dedup against a payload from the previous session.
++    private func subscribeToAppLifecycle() {
++        notificationCenter
++            .publisher(for: UIApplication.willEnterForegroundNotification)
++            .merge(with: notificationCenter.publisher(for: UIApplication.didBecomeActiveNotification))
++            .throttle(for: .seconds(2), scheduler: DispatchQueue.main, latest: true)
++            .sink { [weak self] _ in
++                guard let self = self, !self.devices.isEmpty else { return }
++                if self.debugWatchState {
++                    debug(.watchManager, "Garmin: App entered foreground - forcing watch update")
++                }
++                self.lastSentDataHash = nil
++                self.triggerWatchStateUpdate(triggeredBy: "Foreground")
++            }
++            .store(in: &cancellables)
++    }
++
+     // MARK: - Parsing & Broadcasting
+ 
+     /// Parses devices from a Garmin Connect URL and updates our `devices` property.
+diff --git a/Trio/Sources/Views/EditServingSizeView.swift b/Trio/Sources/Views/EditServingSizeView.swift
+deleted file mode 100644
+index 4b93f96ec..000000000
+--- a/Trio/Sources/Views/EditServingSizeView.swift
++++ /dev/null
+@@ -1,109 +0,0 @@
+-import SwiftUI
+-
+-struct EditServingSizeView: View {
+-    @Binding var foodItem: FoodItem
+-    @Environment(\.dismiss) private var dismiss
+-
+-    @State private var servingSizeText: String = ""
+-
+-    var body: some View {
+-        NavigationView {
+-            VStack(spacing: 20) {
+-                VStack(alignment: .leading, spacing: 8) {
+-                    Text("Food Item")
+-                        .font(.headline)
+-                    Text(foodItem.displayName)
+-                        .font(.subheadline)
+-                        .foregroundColor(.secondary)
+-                }
+-                .frame(maxWidth: .infinity, alignment: .leading)
+-
+-                VStack(alignment: .leading, spacing: 8) {
+-                    Text("Serving Size (grams)")
+-                        .font(.headline)
+-
+-                    TextField("Enter serving size", text: $servingSizeText)
+-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+-                        .keyboardType(.decimalPad)
+-                }
+-                .frame(maxWidth: .infinity, alignment: .leading)
+-
+-                VStack(alignment: .leading, spacing: 4) {
+-                    Text("Nutritional Information")
+-                        .font(.headline)
+-
+-                    let servingSize = Double(servingSizeText) ?? foodItem.servingSizeGrams
+-                    let tempItem = foodItem.withServingSize(servingSize)
+-
+-                    HStack {
+-                        Text("Carbs:")
+-                        Spacer()
+-                        Text("\(tempItem.actualCarbs, specifier: "%.1f")g")
+-                    }
+-
+-                    HStack {
+-                        Text("Protein:")
+-                        Spacer()
+-                        Text("\(tempItem.actualProtein, specifier: "%.1f")g")
+-                    }
+-
+-                    HStack {
+-                        Text("Fat:")
+-                        Spacer()
+-                        Text("\(tempItem.actualFat, specifier: "%.1f")g")
+-                    }
+-
+-                    HStack {
+-                        Text("Calories:")
+-                        Spacer()
+-                        Text("\(tempItem.actualCalories, specifier: "%.0f")")
+-                    }
+-                }
+-                .padding()
+-                .background(Color(.systemGray6))
+-                .cornerRadius(8)
+-
+-                Spacer()
+-            }
+-            .padding()
+-            .navigationTitle("Edit Serving Size")
+-            .navigationBarTitleDisplayMode(.inline)
+-            .toolbar {
+-                ToolbarItem(placement: .navigationBarLeading) {
+-                    Button("Cancel") {
+-                        dismiss()
+-                    }
+-                }
+-
+-                ToolbarItem(placement: .navigationBarTrailing) {
+-                    Button("Save") {
+-                        if let newServingSize = Double(servingSizeText) {
+-                            foodItem = foodItem.withServingSize(newServingSize)
+-                        }
+-                        dismiss()
+-                    }
+-                    .disabled(servingSizeText.isEmpty || Double(servingSizeText) == nil)
+-                }
+-            }
+-        }
+-        .onAppear {
+-            servingSizeText = String(format: "%.0f", foodItem.servingSizeGrams)
+-        }
+-    }
+-}
+-
+-#Preview {
+-    @State var sampleItem = Treatments.FoodItem(
+-        barcode: "123456789",
+-        name: "Sample Food",
+-        brand: "Sample Brand",
+-        servingSize: "100g",
+-        carbsPer100g: 25.0,
+-        proteinPer100g: 10.0,
+-        fatPer100g: 5.0,
+-        caloriesPer100g: 180,
+-        servingSizeGrams: 100
+-    )
+-
+-    return EditServingSizeView(foodItem: $sampleItem)
+-}
+-- 
+2.53.0
+

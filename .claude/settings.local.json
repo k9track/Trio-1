@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp:*)",
+      "Bash(/tmp/apply_patches.sh:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git push:*)",
+      "Bash(git submodule *)",
+      "Bash(git stash *)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
