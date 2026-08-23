@@ -31,8 +31,13 @@ Trio/
 
 ## Key Branches
 
+- **`upstream/main`** - TRIO's official stable release branch (read-only, fetch only)
 - **`upstream/dev`** - TRIO's official dev branch (read-only, fetch only)
-- **`build-with-barcode`** - Main working branch with barcode scanner merged into latest upstream dev
+- **`build-with-barcode-main`** - **Current working branch.** Tracks `upstream/main` (stable releases) with
+  barcode scanner, watch complication, and EversenseKit (cherry-picked from upstream commit `9b81be8e5`) on top.
+  To update: `git fetch upstream main && git merge upstream/main`.
+- **`build-with-barcode`** - Previous working branch tracking `upstream/dev` (bleeding edge). Kept as fallback;
+  also has Omnipod 5, Libre 3, Accu-Chek support that `main` lacks.
 
 ## Eversense CGM Feature
 
@@ -95,9 +100,9 @@ After cloning, the EversenseKit frameworks must be linked in Xcode:
 
 ## Common Workflows
 
-### Updating to Latest Upstream Dev
+### Updating to Latest Upstream
 
-When TRIO releases a new dev version:
+On `build-with-barcode-main`, substitute `main` for `dev` below. When TRIO releases a new version:
 
 ```bash
 # 1. Fetch latest upstream
