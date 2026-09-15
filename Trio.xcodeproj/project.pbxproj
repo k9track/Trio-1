@@ -4885,6 +4885,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				DDCEBF412CC1B42500DF4C36 /* Views */,
 			);
 			name = LiveActivityExtension;
 			productName = LiveActivityExtension;
@@ -4925,6 +4926,7 @@
 				BD8207CD2D2B42E70023339D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				BDFF7A9E2D25FA970016C40C /* Preview Content */,
 			);
 			name = "Trio Watch App";
 			packageProductDependencies = (
@@ -5888,6 +5890,7 @@
 				71D44AAB2CA5F5EA0036EE9E /* AlertPermissionsChecker.swift in Sources */,
 				DDF691032DA2CA1E008BF16C /* AppDiagnosticsProvider.swift in Sources */,
 				320D030F724170A637F06D50 /* (null) in Sources */,
+				CE94598729E9E4110047C9C6 /* WatchConfigRootView.swift in Sources */,
 				DD9E6DA22D59A12700514CEC /* MealHistory.swift in Sources */,
 				19E1F7E829D082D0005C8D20 /* IconConfigDataFlow.swift in Sources */,
 				5A2325522BFCBF55003518CA /* NightscoutUploadView.swift in Sources */,
@@ -5993,6 +5996,7 @@
 				DDDD0FFD2F4E22C000F9C645 /* GlucoseNativeConversionTests.swift in Sources */,
 				DDDD10A12F4E22C000F9C645 /* CarbsNativeConversionTests.swift in Sources */,
 				DDDD10B12F4E22C000F9C645 /* PumpHistoryNativeConversionTests.swift in Sources */,
+				CEE9A65E2BBC9F6500EB5194 /* CalibrationsTests.swift in Sources */,
 				CA02000000000000000010C2 /* DeliveryLimitsSyncTests.swift in Sources */,
 				CA07000000000000000010C2 /* TelemetrySendGateTests.swift in Sources */,
 				BD8FC0622D6619E600B95AED /* OverrideStorageTests.swift in Sources */,
