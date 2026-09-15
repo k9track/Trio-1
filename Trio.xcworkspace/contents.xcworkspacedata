@@ -50,9 +50,6 @@
       location = "group:EversenseKit/EversenseKit.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:EversenseKit/EversenseKit.xcodeproj">
-   </FileRef>
-   <FileRef
       location = "group:TidepoolService/TidepoolService.xcodeproj">
    </FileRef>
 </Workspace>
