@@ -925,6 +925,18 @@
         }
       }
     },
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Camera is used to scan barcodes for food items to automatically calculate carbs, protein, and fat for treatments"
+          }
+        }
+      }
+    },
     "NSContactsUsageDescription" : {
       "comment" : "Privacy - Contacts Usage Description",
       "localizations" : {
