@@ -400,11 +400,11 @@ extension Treatments {
 
             switch current {
             case .fat:
-                return .bolus
+                return .protein
             case .protein:
-                return .fat
+                return .bolus
             case .carbs:
-                return showFPU ? .protein : .bolus
+                return showFPU ? .fat : .bolus
             case .bolus:
                 return .carbs
             }
@@ -422,13 +422,13 @@ extension Treatments {
 
             switch current {
             case .fat:
-                return .protein
-            case .protein:
                 return .carbs
+            case .protein:
+                return .fat
             case .carbs:
                 return .bolus
             case .bolus:
-                return showFPU ? .fat : .carbs
+                return showFPU ? .protein : .carbs
             }
         }
 
@@ -459,6 +459,7 @@ extension Treatments {
                                             Image(systemName: "xmark.circle.fill")
                                         }
                                         .buttonStyle(.plain)
+                                        .accessibilityLabel(Text("Dismiss"))
                                     }
                                     .listRowBackground(Color.orange.opacity(0.75))
                                     .transition(.opacity)
@@ -482,6 +483,7 @@ extension Treatments {
                                 } else {
                                     Button { state.date = state.date.addingTimeInterval(-15.minutes.timeInterval) }
                                     label: { Image(systemName: "minus.circle") }.tint(.blue).buttonStyle(.borderless)
+                                        .accessibilityLabel(Text("15 minutes earlier"))
 
                                     DatePicker(
                                         "Time",
@@ -501,6 +503,7 @@ extension Treatments {
                                         state.date = state.date.addingTimeInterval(15.minutes.timeInterval)
                                     }
                                     label: { Image(systemName: "plus.circle") }.tint(.blue).buttonStyle(.borderless)
+                                        .accessibilityLabel(Text("15 minutes later"))
                                 }
                             }
 
@@ -588,6 +591,7 @@ extension Treatments {
                                     })
                                         .foregroundStyle(.blue)
                                         .buttonStyle(PlainButtonStyle())
+                                        .accessibilityLabel(Text("About the recommendation"))
                                 }
                                 Spacer()
                                 Button {
@@ -610,6 +614,12 @@ extension Treatments {
                                 }
                                 .disabled(state.insulinCalculated == 0 || state.amount == state.insulinCalculated)
                                 .buttonStyle(.bordered).padding(.trailing, -10)
+                                .accessibilityLabel(Text(
+                                    "Use recommended bolus, "
+                                        + (formatter.string(from: Double(state.insulinCalculated) as NSNumber) ?? "")
+                                        + " " + String(localized: "units", comment: "Insulin units, spoken")
+                                ))
+                                .accessibilityHint(Text("Copies the recommended amount into the bolus field"))
                             }
 
                             HStack {
@@ -969,8 +979,7 @@ extension Treatments {
         }
 
         var treatmentButton: some View {
-            let shouldDisplayBolusProgress = state.isBolusInProgress && state.amount > 0 &&
-                !state.externalInsulin && (state.carbs == 0 || state.fat == 0 || state.protein == 0)
+            let shouldDisplayBolusProgress = bolusInProgressForEntry
 
             var treatmentButtonBackground = Color(.systemBlue)
             if limitExceeded {
@@ -1004,20 +1013,20 @@ extension Treatments {
                     .listRowBackground(treatmentButtonBackground)
                     .shadow(radius: 3)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .confirmationDialog(
-                        bolusWarning.warningMessage + " Bolus \(state.amount.description) U?",
+                    .glassActionSheet(
+                        Text(bolusWarning.warningMessage + " Bolus \(state.amount.description) U?"),
                         isPresented: $showConfirmDialogForBolusing,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Cancel", role: .cancel) {}
-                        Button(
-                            bolusWarning.warningMessage
-                                .isEmpty ? String(localized: "Enact Bolus") : String(localized: "Ignore Warning and Enact Bolus"),
-                            role: bolusWarning.warningMessage.isEmpty ? nil : .destructive
-                        ) {
-                            state.invokeTreatmentsTask()
-                        }
-                    }
+                        actions: [
+                            GlassSheetAction(
+                                verbatim: bolusWarning.warningMessage
+                                    .isEmpty ? String(localized: "Enact Bolus") :
+                                    String(localized: "Ignore Warning and Enact Bolus"),
+                                role: bolusWarning.warningMessage.isEmpty ? nil : .destructive
+                            ) {
+                                state.invokeTreatmentsTask()
+                            }
+                        ]
+                    )
                 }
             } header: {
                 if !bolusWarning.warningMessage.isEmpty {
@@ -1045,6 +1054,7 @@ extension Treatments {
                     + (Formatter.decimalFormatterWithThreeFractionDigits.string(from: bolusTotal as NSNumber) ?? "0")
                     + String(localized: " U", comment: "Insulin unit")
             }()
+            let bolusLabel = state.bolusStatus == .inProgress ? String(localized: "Bolusing") : String(localized: "Initiating…")
 
             ZStack {
                 // background card
@@ -1070,7 +1080,7 @@ extension Treatments {
                     Spacer()
 
                     VStack {
-                        Text("Bolusing")
+                        Text(bolusLabel)
                             .font(.subheadline)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Text(bolusString)
@@ -1081,12 +1091,16 @@ extension Treatments {
 
                     Spacer()
 
-                    Button { state.cancelBolus() } label: {
-                        Image(systemName: "xmark.app")
-                            .font(.system(size: 25))
-                    }.tint(Color.tabBar)
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel("Cancel bolus")
+                    if state.bolusStatus == .inProgress {
+                        Button { state.cancelBolus() } label: {
+                            Image(systemName: "xmark.app")
+                                .font(.system(size: 25))
+                        }.tint(Color.tabBar)
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Cancel bolus")
+                    } else if state.bolusStatus == .initiating {
+                        ProgressView()
+                    }
                 }
                 .padding(.horizontal, 10)
                 .padding(.trailing, 8)
@@ -1165,12 +1179,14 @@ extension Treatments {
             pumpBolusLimitExceeded || externalBolusLimitExceeded || carbLimitExceeded || fatLimitExceeded || proteinLimitExceeded
         }
 
+        private var bolusInProgressForEntry: Bool {
+            // .initiating covers pumps that take a few seconds before reporting progress
+            (state.bolusProgress != nil || state.bolusStatus == .initiating) &&
+                state.amount > 0 && !state.externalInsulin
+        }
+
         private var disableTaskButton: Bool {
-            (
-                state.isBolusInProgress && state
-                    .amount > 0 && !state.externalInsulin && (state.carbs == 0 || state.fat == 0 || state.protein == 0)
-            ) || state
-                .addButtonPressed || limitExceeded
+            bolusInProgressForEntry || state.addButtonPressed || limitExceeded
         }
     }
 
