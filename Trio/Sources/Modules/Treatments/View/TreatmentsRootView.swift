@@ -192,6 +192,8 @@ extension Treatments {
         @State private var scannedCode: String?
         @State private var scannedMeal = ScannedMealItems()
         @State private var showBarcodeNotFoundAlert = false
+        @State private var showMissingCarbDataAlert = false
+        @State private var missingCarbDataMessage = ""
         // Serving size editor states
         @State private var editingItem: FoodItem?
         @State private var customServingSize: String = ""
@@ -319,9 +321,15 @@ extension Treatments {
                 await MainActor.run {
                     // Handle error case
                     print("Error looking up food: \(error.localizedDescription)")
-                    // Treat invalid or lookup errors the same as not found for UX consistency
                     showBarcodeScanner = false
-                    showBarcodeNotFoundAlert = true
+                    if let dbError = error as? FoodDatabaseError, case .missingCarbData = dbError {
+                        // The product exists, so "not found, try again" would be wrong advice.
+                        missingCarbDataMessage = dbError.localizedDescription
+                        showMissingCarbDataAlert = true
+                    } else {
+                        // Treat invalid or lookup errors the same as not found for UX consistency
+                        showBarcodeNotFoundAlert = true
+                    }
                 }
             }
 
@@ -755,6 +763,11 @@ extension Treatments {
                 Button(String(localized: "Cancel"), role: .cancel) {}
             } message: {
                 Text(String(localized: "No product found for that barcode. Please try again."))
+            }
+            .alert(String(localized: "No carb data"), isPresented: $showMissingCarbDataAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(missingCarbDataMessage)
             }
         }
 

@@ -97,8 +97,14 @@ class FoodDatabaseService {
         let name = product.product_name ?? product.product_name_en ?? "Unknown Product"
         let brand = product.brands?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces)
 
+        // A missing carb value must fail the lookup rather than become 0 g: the
+        // scanned total is added straight into the carbs used for the bolus.
+        guard let carbs = nutriments.carbohydrates_100g ?? nutriments.carbohydrates else {
+            os_log("no carb value for barcode=%{public}@ name=%{public}@", log: log, type: .info, barcode, name)
+            throw FoodDatabaseError.missingCarbData(productName: name)
+        }
+
         // Convert nutrients per 100g (OpenFoodFacts standard), falling back to non-100g fields
-        let carbs = nutriments.carbohydrates_100g ?? nutriments.carbohydrates ?? 0.0
         let protein = nutriments.proteins_100g ?? nutriments.proteins ?? 0.0
         let fat = nutriments.fat_100g ?? nutriments.fat ?? 0.0
         let calories = nutriments.energy_kcal_100g ?? nutriments.energy_kcal ?? 0.0
@@ -246,6 +252,7 @@ enum FoodDatabaseError: LocalizedError {
     case timeout
     case productNotFound
     case missingNutritionData
+    case missingCarbData(productName: String)
     case decodingError
 
     var errorDescription: String? {
@@ -264,6 +271,8 @@ enum FoodDatabaseError: LocalizedError {
             return "Product not found in database"
         case .missingNutritionData:
             return "Nutrition data not available for this product"
+        case let .missingCarbData(productName):
+            return "The food database has no carb information for \"\(productName)\". Enter the carbs from the package label instead."
         case .decodingError:
             return "Failed to decode product data"
         }

@@ -1140,6 +1140,9 @@
     "No product found for that barcode. Please try again." : {
 
     },
+    "No carb data" : {
+      "extractionState" : "manual"
+    },
     "No items scanned yet" : {
 
     },
