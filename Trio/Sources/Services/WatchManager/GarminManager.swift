@@ -260,7 +260,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             || currentWatchface == .complication
     }
 
-    /// Trio Companion watch app and watch face (github: k9track/trio-garmin-app). Registered
+    /// Trio Companion watch app and watch face (github: k9track/trio-garmin-companion). Registered
     /// alongside the selected watchface and datafield rather than replacing either, and they
     /// always receive the full glucose history for their trend graph.
     private static let companionApps: [(uuid: UUID, name: String)] = [

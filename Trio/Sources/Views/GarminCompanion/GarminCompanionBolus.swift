@@ -4,7 +4,7 @@ import Foundation
 import Swinject
 
 // Bolus and carb requests from the Trio Companion Garmin watch app
-// (github: k9track/trio-garmin-app). Lives outside GarminManager so upstream
+// (github: k9track/trio-garmin-companion). Lives outside GarminManager so upstream
 // merges into that file stay small; GarminManager only routes messages here.
 //
 // Wire format, watch → phone (a Connect IQ dictionary):
