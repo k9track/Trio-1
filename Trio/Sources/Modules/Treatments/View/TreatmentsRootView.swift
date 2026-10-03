@@ -527,6 +527,19 @@ extension Treatments {
 
                             // Barcode scanner button
                             HStack {
+                                if scannedMeal.hasItems {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("\(scannedMeal.items.count) items")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text("C: \(String(format: "%.1f", scannedMeal.totalCarbs))g")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+
+                                Spacer()
+
                                 Button(action: {
                                     showBarcodeScanner = true
                                 }) {
@@ -537,19 +550,6 @@ extension Treatments {
                                     .foregroundColor(.blue)
                                 }
                                 .buttonStyle(.borderless)
-
-                                Spacer()
-
-                                if scannedMeal.hasItems {
-                                    VStack(alignment: .trailing, spacing: 2) {
-                                        Text("\(scannedMeal.items.count) items")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text("C: \(String(format: "%.1f", scannedMeal.totalCarbs))g")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
                             }
                         }.listRowBackground(Color.chart)
 
