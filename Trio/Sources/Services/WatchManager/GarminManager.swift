@@ -260,6 +260,18 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             || currentWatchface == .complication
     }
 
+    /// Trio Companion watch app and watch face (github: k9track/trio-garmin-app). Registered
+    /// alongside the selected watchface and datafield rather than replacing either, and they
+    /// always receive the full glucose history for their trend graph.
+    private static let companionApps: [(uuid: UUID, name: String)] = [
+        (UUID(uuidString: "47446545-d711-4b95-8267-9eda745199cc")!, "app:Trio Companion"),
+        (UUID(uuidString: "d0679157-1ca2-481a-9511-12d0ffac3c6a")!, "watchface:Trio Companion Face")
+    ]
+
+    private static func isCompanion(_ uuid: UUID) -> Bool {
+        companionApps.contains { $0.uuid == uuid }
+    }
+
     /// Returns the display name for an app UUID (watchface or datafield).
     /// Use this for routine log messages where UUID adds noise.
     private func appDisplayName(for uuid: UUID) -> String {
@@ -267,6 +279,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return "watchface:\(currentWatchface.displayName)"
         } else if uuid == currentDatafield.datafieldUUID {
             return "datafield:\(currentDatafield.displayName)"
+        } else if let companion = Self.companionApps.first(where: { $0.uuid == uuid }) {
+            return companion.name
         } else {
             return "unknown app"
         }
@@ -280,6 +294,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             return "watchface:\(currentWatchface.displayName) (\(uuid.uuidString))"
         } else if uuid == currentDatafield.datafieldUUID {
             return "datafield:\(currentDatafield.displayName) (\(uuid.uuidString))"
+        } else if let companion = Self.companionApps.first(where: { $0.uuid == uuid }) {
+            return "\(companion.name) (\(uuid.uuidString))"
         } else {
             return "unknown app (\(uuid.uuidString))"
         }
@@ -558,7 +574,8 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         }
 
         // Fetch glucose - SwissAlpine needs 24, Trio needs 2 (for delta calculation)
-        let glucoseLimit = needsHistoricalGlucoseData ? 24 : 2
+        // Always 24: the companion app graphs history. Apps that don't are trimmed in broadcast.
+        let glucoseLimit = 24
         let glucoseIds = try await fetchGlucose(limit: glucoseLimit)
 
         // Fetch all determinations from last 30 minutes (no limit)
@@ -582,7 +599,6 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
         let displaySecondaryChoice = settingsManager.settings.garminSettings.secondaryAttributeChoice.rawValue
         // Short form, not the enum raw value: this is the wire format the watchface reads.
         let colorSchemeValue = glucoseColorScheme == .dynamicColor ? "dynamic" : "static"
-        let needsHistoricalData = needsHistoricalGlucoseData
         let shouldDebug = debugWatchState
         let previousHash = lastPreparedDataHash
         let previousWatchState = lastPreparedWatchState
@@ -655,7 +671,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
             }
 
             // Process glucose readings
-            let entriesToSend = needsHistoricalData ? glucoseObjects.count : 1
+            let entriesToSend = glucoseObjects.count
 
             for (index, glucose) in glucoseObjects.enumerated() {
                 guard index < entriesToSend else { break }
@@ -777,6 +793,14 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                 connectIQ?.register(forAppMessages: watchfaceApp, delegate: self)
             } else if !isWatchfaceDataEnabled {
                 debugGarmin("Garmin: Watchface data disabled - skipping watchface registration")
+            }
+
+            for companion in Self.companionApps {
+                if let companionApp = IQApp(uuid: companion.uuid, store: UUID(), device: device) {
+                    debugGarmin("Garmin: Registered \(appDetailedName(for: companion.uuid))")
+                    watchApps.append(companionApp)
+                    connectIQ?.register(forAppMessages: companionApp, delegate: self)
+                }
             }
 
             // Always register datafield (if configured)
@@ -914,8 +938,19 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
                     debug(.watchManager, "Garmin: App not installed: \(appName)")
                     return
                 }
-                self?.debugGarmin("Garmin: Sending to \(appName)")
-                self?.sendMessage(jsonObject as Any, to: app, appName: appName)
+                guard let self else { return }
+                self.debugGarmin("Garmin: Sending to \(appName)")
+                // Watchface/datafield keep receiving exactly what they did before the
+                // companion app existed: one entry unless the selected face draws history.
+                let payload: Any
+                if Self.isCompanion(appUUID) || self.needsHistoricalGlucoseData {
+                    payload = jsonObject
+                } else if let entries = jsonObject as? [Any] {
+                    payload = Array(entries.prefix(1))
+                } else {
+                    payload = jsonObject
+                }
+                self.sendMessage(payload, to: app, appName: appName)
             }
         }
 
@@ -1081,6 +1116,12 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
         // If watch requests status update, send current data via unified path
         guard let statusString = message as? String, statusString == "status" else {
             return
+        }
+
+        // The companion app asks when it opens; if it missed the last push, the broadcast
+        // dedup would otherwise skip the reply and leave it blank until the next loop.
+        if Self.isCompanion(appUUID) {
+            lastSentDataHash = nil
         }
 
         // Use triggerWatchStateUpdate for consistent deduplication and debouncing
