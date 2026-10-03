@@ -36,7 +36,7 @@ enum GarminCompanionBolusSettings {
     }
 
     static func isValidPIN(_ pin: String) -> Bool {
-        (4 ... 6).contains(pin.count) && pin.allSatisfy(\.isASCIIDigit)
+        pin.count == 4 && pin.allSatisfy(\.isASCIIDigit)
     }
 }
 
