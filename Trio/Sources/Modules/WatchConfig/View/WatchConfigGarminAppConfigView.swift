@@ -195,6 +195,12 @@ struct WatchConfigGarminAppConfigView: View {
                     }.padding(.bottom)
                 }
             ).listRowBackground(Color.chart)
+
+            // MARK: - Trio Companion Watch Bolus
+
+            Section(header: Text("Trio Companion")) {
+                NavigationLink("Watch Bolus", destination: GarminCompanionBolusSettingsView())
+            }.listRowBackground(Color.chart)
         }
         .listSectionSpacing(sectionSpacing)
         .scrollContentBackground(.hidden)
