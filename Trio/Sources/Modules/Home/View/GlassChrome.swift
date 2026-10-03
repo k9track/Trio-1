@@ -80,6 +80,24 @@ struct GlassPanelBackground: ViewModifier {
     }
 }
 
+/// Edge-to-edge row background for the Home bottom zone: no card or outline.
+/// Neutral rows are fully flat; a tint keeps state color (override, temp target,
+/// bolus, warnings) as a faint full-width band so the signal isn't lost.
+struct FlatRowBackground: ViewModifier {
+    var tint: Color?
+    var tintOpacity: Double = 0.12
+
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    func body(content: Content) -> some View {
+        let prefersOpaque = reduceTransparency || colorSchemeContrast == .increased
+        content.background(
+            Rectangle().fill((tint ?? .clear).opacity(prefersOpaque ? min(tintOpacity * 1.5, 0.30) : tintOpacity))
+        )
+    }
+}
+
 /// Material fill for small glass affordances (rate capsule, chart-info circle) that
 /// becomes an opaque fill under Reduce Transparency / Increase Contrast.
 struct GlassMaterialFill<S: InsettableShape>: ViewModifier {
@@ -110,6 +128,10 @@ extension View {
             strokeOpacity: strokeOpacity,
             strokeWidth: strokeWidth
         ))
+    }
+
+    func flatRow(tint: Color? = nil, tintOpacity: Double = 0.12) -> some View {
+        modifier(FlatRowBackground(tint: tint, tintOpacity: tintOpacity))
     }
 
     /// Material fill for a small shape (capsule/circle) that turns opaque under

@@ -343,7 +343,6 @@ extension Home.RootView {
                     Color.purple.opacity(0.12)
                     Color.loopGreen.opacity(0.12)
                 }
-                .clipShape(GlassChrome.panelShape)
             }
             HStack {
                 if let overrideString = overrideString, let tempTargetString = tempTargetString {
@@ -387,7 +386,7 @@ extension Home.RootView {
                 } else {
                     noActiveAdjustmentsView()
                 }
-            }.padding(.horizontal, 10)
+            }.padding(.horizontal, 16)
                 .glassActionSheet(
                     "Adjustment to Stop",
                     message: Text("Select Adjustment"),
@@ -418,24 +417,7 @@ extension Home.RootView {
                 )
         }
         .frame(height: HomeLayout.bottomPanelHeight)
-        .glassPanel(
-            tint: isConcurrent ? nil : tint,
-            tintOpacity: 0.12,
-            strokeOpacity: isConcurrent ? 0 : (tint == nil ? 0.08 : 0.30)
-        )
-        .overlay(
-            // concurrent halves get a bicolor rim the single-tint chrome can't express
-            isConcurrent
-                ? GlassChrome.panelShape.strokeBorder(
-                    LinearGradient(
-                        colors: [Color.purple.opacity(0.30), Color.loopGreen.opacity(0.30)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ),
-                    lineWidth: 1
-                )
-                : nil
-        )
+        .flatRow(tint: isConcurrent ? nil : tint)
         .overlay(alignment: .bottom) {
             // anchored like the bolus progress bar so both panels match
             Group {
@@ -459,7 +441,6 @@ extension Home.RootView {
         .accessibilityHint(Text(String(localized: "Opens adjustments", comment: "Accessibility hint")))
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { selectedTab = 2 }
-        .padding(.horizontal, 10)
     }
 
     @ViewBuilder func bolusView(_ progress: Decimal) -> some View {
@@ -510,17 +491,15 @@ extension Home.RootView {
                     ProgressView()
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.trailing, 8)
+            .padding(.horizontal, 16)
             .frame(height: HomeLayout.bottomPanelHeight)
-            .glassPanel(tint: .insulin, tintOpacity: 0.18, strokeOpacity: 0.30)
+            .flatRow(tint: .insulin, tintOpacity: 0.18)
             .overlay(alignment: .bottom) {
                 // bar hugs the panel's bottom edge (the slot no longer has outer bottom padding)
                 BolusProgressBar(progress: progress)
                     .padding(.horizontal, 18)
                     .padding(.bottom, 1)
             }
-            .padding(.horizontal, 10)
         }
     }
 
@@ -657,8 +636,7 @@ extension Home.RootView {
                 .padding(.horizontal, 16)
             }
             .frame(height: HomeLayout.statsBannerHeight)
-            .glassPanel()
-            .padding(.horizontal, 10)
+            .flatRow()
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -684,8 +662,6 @@ extension Home.RootView {
         tint: Color,
         isCritical: Bool = false,
         tintOpacity: Double? = nil,
-        strokeOpacity: Double? = nil,
-        strokeWidth: CGFloat? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -711,13 +687,7 @@ extension Home.RootView {
                 .padding(.horizontal, 16)
             }
             .frame(height: HomeLayout.statsBannerHeight)
-            .glassPanel(
-                tint: tint,
-                tintOpacity: tintOpacity ?? (isCritical ? 0.30 : 0.12),
-                strokeOpacity: strokeOpacity ?? (isCritical ? 0.8 : 0.35),
-                strokeWidth: strokeWidth ?? (isCritical ? 1.5 : 1)
-            )
-            .padding(.horizontal, 10)
+            .flatRow(tint: tint, tintOpacity: tintOpacity ?? (isCritical ? 0.30 : 0.12))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -774,9 +744,7 @@ extension Home.RootView {
                 ),
                 subtitle: String(localized: "See what's new in this version."),
                 tint: .insulin,
-                tintOpacity: 0.24,
-                strokeOpacity: 0.7,
-                strokeWidth: 1.5
+                tintOpacity: 0.24
             ) {
                 showReleaseNotes = true
             }
@@ -823,7 +791,12 @@ extension Home.RootView {
 
             multiUsePanel()
                 .frame(height: HomeLayout.statsBannerHeight)
+                .overlay(alignment: .top) {
+                    // centered in the gap between the two rows
+                    Divider().offset(y: -HomeLayout.bottomZonePadding / 2)
+                }
         }
         .padding(.vertical, HomeLayout.bottomZonePadding)
+        .overlay(alignment: .top) { Divider() }
     }
 }
