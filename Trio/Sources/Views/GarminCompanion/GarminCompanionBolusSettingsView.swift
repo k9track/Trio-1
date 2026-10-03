@@ -48,7 +48,7 @@ struct GarminCompanionBolusSettingsView: View {
             Section(
                 header: Text("PIN"),
                 footer: Text(
-                    "4–6 digits. Enter the same PIN in the Trio Companion settings in the Garmin Connect app. Watch requests are signed with it and expire after 60 seconds."
+                    "4–6 digits. Enter the same PIN on the watch: open Trio Companion, press START, then Set PIN. Watch requests are signed with it and expire after 60 seconds."
                 )
             ) {
                 SecureField(hasSavedPIN ? "PIN saved – enter to change" : "Enter PIN", text: $pin)
