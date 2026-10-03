@@ -413,17 +413,19 @@ class BarcodeScannerViewController: UIViewController {
 
 extension BarcodeScannerViewController: AVCaptureMetadataOutputObjectsDelegate {
     func metadataOutput(_: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from _: AVCaptureConnection) {
+        // Stop only once a readable value is in hand. Stopping first and then bailing
+        // on an unreadable code left the camera frozen with nothing reported.
+        guard let stringValue = metadataObjects
+            .compactMap({ ($0 as? AVMetadataMachineReadableCodeObject)?.stringValue })
+            .first(where: { !$0.isEmpty })
+        else { return }
+
         captureSession.stopRunning()
 
-        if let metadataObject = metadataObjects.first {
-            guard let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject else { return }
-            guard let stringValue = readableObject.stringValue else { return }
-
-            // Provide haptic feedback with success animation
-            playHapticFeedback()
-            showSuccessAnimation()
-            delegate?.didScanBarcode(stringValue)
-        }
+        // Provide haptic feedback with success animation
+        playHapticFeedback()
+        showSuccessAnimation()
+        delegate?.didScanBarcode(stringValue)
     }
 
     private func playHapticFeedback() {
