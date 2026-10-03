@@ -18,6 +18,11 @@ extension Treatments {
         let fatPer100g: Double
         let caloriesPer100g: Double?
         let servingSizeGrams: Double?
+        /// One portion as resolved from the food database. Kept separately from
+        /// `servingSizeGrams` (the edited total) so re-editing starts from the same
+        /// portion size instead of multiplying the total again.
+        let portionGrams: Double?
+        let portions: Double
 
         init(
             barcode: String,
@@ -40,6 +45,8 @@ extension Treatments {
             self.fatPer100g = fatPer100g
             self.caloriesPer100g = caloriesPer100g
             self.servingSizeGrams = servingSizeGrams
+            portionGrams = servingSizeGrams
+            portions = 1
         }
 
         private init(
@@ -52,7 +59,9 @@ extension Treatments {
             proteinPer100g: Double,
             fatPer100g: Double,
             caloriesPer100g: Double?,
-            servingSizeGrams: Double?
+            servingSizeGrams: Double?,
+            portionGrams: Double?,
+            portions: Double
         ) {
             self.id = id
             self.barcode = barcode
@@ -64,6 +73,8 @@ extension Treatments {
             self.fatPer100g = fatPer100g
             self.caloriesPer100g = caloriesPer100g
             self.servingSizeGrams = servingSizeGrams
+            self.portionGrams = portionGrams
+            self.portions = portions
         }
 
         /// Calculated nutritional values for the actual serving
@@ -96,10 +107,11 @@ extension Treatments {
             return name
         }
 
-        /// Creates a food item with custom serving size
-        func withServingSize(_ grams: Double) -> FoodItem {
+        /// Sets the amount eaten as `portions` portions of `portionGrams` each.
+        func withPortions(_ portions: Double, of portionGrams: Double) -> FoodItem {
+            let grams = portions * portionGrams
             // Preserve the original ID to maintain identity in lists
-            FoodItem(
+            return FoodItem(
                 id: id,
                 barcode: barcode,
                 name: name,
@@ -109,7 +121,9 @@ extension Treatments {
                 proteinPer100g: proteinPer100g,
                 fatPer100g: fatPer100g,
                 caloriesPer100g: caloriesPer100g,
-                servingSizeGrams: grams
+                servingSizeGrams: grams,
+                portionGrams: portionGrams,
+                portions: portions
             )
         }
     }
@@ -196,7 +210,6 @@ extension Treatments {
         @State private var missingCarbDataMessage = ""
         // Serving size editor states
         @State private var editingItem: FoodItem?
-        @State private var customServingSize: String = ""
 
         private enum Config {
             static let dividerHeight: CGFloat = 2
@@ -306,7 +319,6 @@ extension Treatments {
                     await MainActor.run {
                         // Prompt user to edit serving size before adding
                         editingItem = foodItem
-                        customServingSize = String(foodItem.servingSizeGrams ?? 100)
                     }
                 } else {
                     await MainActor.run {
@@ -741,8 +753,9 @@ extension Treatments {
                 )
             }
             .sheet(item: $editingItem) { item in
-                FractionalServingSizeView(
+                ServingSizeEditorView(
                     item: item,
+                    appliesSavedDefault: true,
                     onSave: { updatedItem in
                         scannedMeal.addItem(updatedItem)
                         showScannedItemsSheet = true
@@ -781,191 +794,6 @@ extension Treatments {
                 return .updatingIOB
             default:
                 return .updatingTreatments
-            }
-        }
-
-        struct FractionalServingSizeView: View {
-            let item: FoodItem
-            let onSave: (FoodItem) -> Void
-
-            @Environment(\.dismiss) private var dismiss
-            @State private var portions: Double = 1
-            @State private var gramsPerPortion: Double = 100
-            @State private var lastDelta: Double = 0
-            @State private var showDelta: Bool = false
-            @State private var defaultPortion: Double?
-
-            var body: some View {
-                NavigationStack {
-                    VStack(spacing: 20) {
-                        Text(item.displayName)
-                            .font(.title2)
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.center)
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Portions")
-                                .font(.headline)
-                            HStack {
-                                // Use 0.5 as the minimum when stepping by 0.5 to avoid
-                                // getting offset to 0.25 and producing values like 0.75/1.25
-                                // that make 1.0 unreachable from certain paths.
-                                Stepper(value: $portions, in: 0.5 ... 50, step: 0.5) {
-                                    Text(portions == floor(portions) ? "\(Int(portions))" : String(format: "%.1f", portions))
-                                }
-                                .labelsHidden()
-                                Spacer()
-                                Text("Per portion: \(Int(gramsPerPortion))g")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            // Visual feedback for +/− movements
-                            if showDelta {
-                                Text(String(format: "%+.1f portions", lastDelta))
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue.opacity(0.1))
-                                    .cornerRadius(8)
-                                    .transition(.opacity)
-                            }
-                            HStack(spacing: 8) {
-                                let quickOptions: [Double] = [0.5, 1.0, 1.5, 2.0]
-                                ForEach(quickOptions, id: \.self) { opt in
-                                    Button {
-                                        withAnimation(.easeOut(duration: 0.15)) {
-                                            portions = opt
-                                        }
-                                    } label: {
-                                        Text(opt == floor(opt) ? "\(Int(opt))" : String(format: "%.1f", opt))
-                                            .font(.caption)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 6)
-                                            .background(
-                                                (abs(portions - opt) < 0.001) ? Color.blue
-                                                    .opacity(0.15) : Color(.systemGray6)
-                                            )
-                                            .cornerRadius(8)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                Spacer()
-                                if let defaultPortion, defaultPortion >= 0.5 {
-                                    Text(
-                                        "Default: " +
-                                            (
-                                                defaultPortion == floor(defaultPortion) ? "\(Int(defaultPortion))" :
-                                                    String(format: "%.1f", defaultPortion)
-                                            )
-                                    )
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-
-                        let totalGrams = gramsPerPortion * portions
-                        if totalGrams > 0 {
-                            let updatedItem = item.withServingSize(totalGrams)
-
-                            // Summary of selection
-                            HStack {
-                                Text(String(format: "Total: %.1f portions", portions))
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text("\(Int(totalGrams))g total")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            VStack(spacing: 12) {
-                                Text("Nutritional Values")
-                                    .font(.headline)
-
-                                HStack {
-                                    NutrientTotal(label: "Carbs", value: updatedItem.actualCarbs, unit: "g")
-                                    Spacer()
-                                    NutrientTotal(label: "Protein", value: updatedItem.actualProtein, unit: "g")
-                                    Spacer()
-                                    NutrientTotal(label: "Fat", value: updatedItem.actualFat, unit: "g")
-                                }
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        }
-
-                        Spacer()
-                    }
-                    .padding()
-                    .navigationTitle("Edit Serving Size")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Cancel") { dismiss() }
-                        }
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Save") {
-                                let totalGrams = gramsPerPortion * portions
-                                let updatedItem = item.withServingSize(totalGrams)
-                                onSave(updatedItem)
-                                dismiss()
-                            }
-                            .disabled(gramsPerPortion <= 0 || portions <= 0)
-                        }
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Save & Default") {
-                                let totalGrams = gramsPerPortion * portions
-                                let updatedItem = item.withServingSize(totalGrams)
-                                let key = "defaultPortion_\(item.barcode)"
-                                UserDefaults.standard.set(portions, forKey: key)
-                                defaultPortion = portions
-                                onSave(updatedItem)
-                                dismiss()
-                            }
-                            .disabled(gramsPerPortion <= 0 || portions <= 0)
-                        }
-                    }
-                    .onAppear {
-                        gramsPerPortion = max(1, item.servingSizeGrams ?? 100)
-                        let key = "defaultPortion_\(item.barcode)"
-                        if let stored = UserDefaults.standard.object(forKey: key) as? Double, stored >= 0.5 {
-                            let normalized = max(0.5, min(50, round(stored * 2) / 2))
-                            portions = normalized
-                            defaultPortion = normalized
-                        } else if let number = UserDefaults.standard.object(forKey: key) as? NSNumber {
-                            let stored = number.doubleValue
-                            if stored >= 0.5 {
-                                let normalized = max(0.5, min(50, round(stored * 2) / 2))
-                                portions = normalized
-                                defaultPortion = normalized
-                            } else {
-                                portions = 1
-                            }
-                        } else {
-                            portions = 1
-                        }
-                    }
-                    .onChange(of: portions) { oldValue, newValue in
-                        // Normalize to nearest 0.5 to keep values stable and reversible
-                        let normalized = max(0.5, min(50, round(newValue * 2) / 2))
-                        if normalized != newValue {
-                            portions = normalized
-                        }
-                        let oldNormalized = round(oldValue * 2) / 2
-                        lastDelta = normalized - oldNormalized
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            showDelta = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                showDelta = false
-                            }
-                        }
-                    }
-                }
             }
         }
 
