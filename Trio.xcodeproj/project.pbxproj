@@ -744,6 +744,8 @@
 		BDFF79A22D25AA870016C40C /* ComplicationShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFF79A12D25AA870016C40C /* ComplicationShared.swift */; };
 		DD09D66C2D2B553A000D82C9 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D6692D2B553A000D82C9 /* BarcodeScannerView.swift */; };
 		DD09D66D2D2B553A000D82C9 /* ScannedItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D66A2D2B553A000D82C9 /* ScannedItemsView.swift */; };
+		A1C0B0151E2F4A0000000004 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolusSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0B0151E2F4A0000000003 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolusSettingsView.swift */; };
+		A1C0B0151E2F4A0000000002 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolus.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0B0151E2F4A0000000001 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolus.swift */; };
 		DD09D66E2D2B553A000D82C9 /* FoodDatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD09D66B2D2B553A000D82C9 /* FoodDatabaseService.swift */; };
 		DD1745132C54169400211FAC /* DevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745122C54169400211FAC /* DevicesView.swift */; };
 		DD1745152C54388A00211FAC /* TherapySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745142C54388A00211FAC /* TherapySettingsView.swift */; };
@@ -1851,6 +1853,8 @@
 		DD1745282C55642100211FAD /* DosingModeOverrideNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DosingModeOverrideNote.swift; sourceTree = "<group>"; };
 		DD09D6692D2B553A000D82C9 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Trio/Sources/Views/BarcodeScannerView.swift"; sourceTree = SOURCE_ROOT; };
 		DD09D66A2D2B553A000D82C9 /* ScannedItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Trio/Sources/Views/ScannedItemsView.swift"; sourceTree = SOURCE_ROOT; };
+		A1C0B0151E2F4A0000000003 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolusSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trio/Sources/Views/GarminCompanion/GarminCompanionBolusSettingsView.swift; sourceTree = SOURCE_ROOT; };
+		A1C0B0151E2F4A0000000001 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Trio/Sources/Views/GarminCompanion/GarminCompanionBolus.swift; sourceTree = SOURCE_ROOT; };
 		DD09D66B2D2B553A000D82C9 /* FoodDatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Trio/Sources/Services/FoodDatabaseService.swift"; sourceTree = SOURCE_ROOT; };
 		DD17452A2C556E8100211FAC /* SettingInputHintView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingInputHintView.swift; sourceTree = "<group>"; };
 		DD17452D2C55AE4800211FAC /* TargetBehavoirDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetBehavoirDataFlow.swift; sourceTree = "<group>"; };
@@ -5873,6 +5877,8 @@
 				DD1745292C55642100211FAD /* DosingModeOverrideNote.swift in Sources */,
 				DD09D66C2D2B553A000D82C9 /* BarcodeScannerView.swift in Sources */,
 				DD09D66D2D2B553A000D82C9 /* ScannedItemsView.swift in Sources */,
+				A1C0B0151E2F4A0000000004 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolusSettingsView.swift in Sources */,
+				A1C0B0151E2F4A0000000002 /* Trio/Sources/Views/GarminCompanion/GarminCompanionBolus.swift in Sources */,
 				DD09D66E2D2B553A000D82C9 /* FoodDatabaseService.swift in Sources */,
 				38569349270B5DFB0002C50D /* AppGroupSource.swift in Sources */,
 				3B5CD2A12D4AEA5100CE213C /* JavascriptOptional.swift in Sources */,
