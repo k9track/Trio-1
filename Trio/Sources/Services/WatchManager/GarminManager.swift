@@ -275,7 +275,7 @@ final class BaseGarminManager: NSObject, GarminManager, Injectable {
     /// Only the companion watch app can send bolus requests; watch faces can't transmit.
     private static let companionBolusAppUUID = companionApps[0].uuid
 
-    private lazy var companionBolus = GarminCompanionBolusHandler()
+    private let companionBolus = GarminCompanionBolusHandler()
 
     /// Returns the display name for an app UUID (watchface or datafield).
     /// Use this for routine log messages where UUID adds noise.
@@ -1116,9 +1116,15 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             return
         }
         let appName = appDisplayName(for: appUUID)
-        debugGarmin("Garmin: Received message '\(message)' from \(appName)")
 
-        if appUUID == Self.companionBolusAppUUID, GarminCompanionBolusHandler.isBolusRequest(message) {
+        // Bolus and pairing requests carry signatures; log their type only, never their
+        // contents, since shared logs would otherwise hand out material to attack them.
+        if GarminCompanionBolusHandler.isCompanionRequest(message) {
+            guard appUUID == Self.companionBolusAppUUID else {
+                debug(.watchManager, "Garmin: Ignoring bolus/pairing request from \(appName)")
+                return
+            }
+            debug(.watchManager, "Garmin: Bolus/pairing request from \(appName)")
             let handler = companionBolus
             Task { @MainActor [weak self] in
                 await handler.handle(message) { reply in
@@ -1129,6 +1135,7 @@ extension BaseGarminManager: IQUIOverrideDelegate, IQDeviceEventDelegate, IQAppM
             }
             return
         }
+        debugGarmin("Garmin: Received message '\(message)' from \(appName)")
 
         // If watch requests status update, send current data via unified path
         guard let statusString = message as? String, statusString == "status" else {
