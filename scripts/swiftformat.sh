@@ -6,9 +6,9 @@ if [ "$CI" = "true" ]; then
 fi
 
 function assertEnvironment {
-	if [ -z $1 ]; then
+	if [ -z $1 ]; then 
 		echo $2
-		exit 0
+		exit 127
 	fi
 }
 
@@ -16,7 +16,6 @@ assertEnvironment "${SRCROOT}" "Please set SRCROOT to project root folder"
 
 unset SDKROOT
 
-# Run swiftformat, but don't fail the build if it fails
 swift run -c release --package-path BuildTools swiftformat "${SRCROOT}" \
 --enable andOperator,\
 anyObjectProtocol,\
@@ -120,6 +119,8 @@ trailingClosures \
 --exclude MedtrumKit \
 --exclude OmnipodKit \
 --exclude LibreLoop \
---exclude LibreCRKit \
+--exclude RoundWhiteDiscKit \
 --exclude LoopAlgorithm \
---exclude AccuChekKit || true
+--exclude AccuChekKit \
+--exclude EversenseKit
+      

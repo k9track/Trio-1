@@ -95,8 +95,10 @@ struct TrioWatchComplicationEntryView: View {
             TrioRectangularView(entry: entry)
         case .accessoryCircular:
             TrioCircularView(entry: entry)
-        case .accessoryCorner:
-            TrioCornerView(entry: entry)
+        #if os(watchOS)
+            case .accessoryCorner:
+                TrioCornerView(entry: entry)
+        #endif
         case .accessoryInline:
             TrioInlineView(entry: entry)
         default:
@@ -170,29 +172,32 @@ struct TrioCircularView: View {
 
 // MARK: - Corner Complication (Glucose in Curve)
 
-struct TrioCornerView: View {
-    var entry: TrioWatchComplicationEntry
+// Corner complications only exist on watchOS (upstream 1.0.2 guards them the same way).
+#if os(watchOS)
+    struct TrioCornerView: View {
+        var entry: TrioWatchComplicationEntry
 
-    private var glucoseColor: Color {
-        entry.isStale ? .secondary : Color(hex: entry.glucoseColorHex)
-    }
+        private var glucoseColor: Color {
+            entry.isStale ? .secondary : Color(hex: entry.glucoseColorHex)
+        }
 
-    var body: some View {
-        Text(entry.isStale ? "--" : entry.glucose)
-            .font(.system(.title3, design: .rounded))
-            .fontWeight(.bold)
-            .foregroundStyle(glucoseColor)
-            .widgetCurvesContent()
-            .widgetLabel {
-                if let trend = entry.trendArrow, let delta = entry.delta, !entry.isStale {
-                    Text("\(trend) \(delta)")
-                } else {
-                    Text("Trio")
+        var body: some View {
+            Text(entry.isStale ? "--" : entry.glucose)
+                .font(.system(.title3, design: .rounded))
+                .fontWeight(.bold)
+                .foregroundStyle(glucoseColor)
+                .widgetCurvesContent()
+                .widgetLabel {
+                    if let trend = entry.trendArrow, let delta = entry.delta, !entry.isStale {
+                        Text("\(trend) \(delta)")
+                    } else {
+                        Text("Trio")
+                    }
                 }
-            }
-            .widgetBackground(backgroundView: Color.clear)
+                .widgetBackground(backgroundView: Color.clear)
+        }
     }
-}
+#endif
 
 // MARK: - Inline Complication (Single Line)
 
@@ -221,12 +226,15 @@ struct TrioInlineView: View {
         }
         .configurationDisplayName("Trio Glucose")
         .description("Live glucose readout for your watch face")
-        .supportedFamilies([
-            .accessoryRectangular,
-            .accessoryCircular,
-            .accessoryCorner,
-            .accessoryInline
-        ])
+        .supportedFamilies(supportedFamilies)
+    }
+
+    private var supportedFamilies: [WidgetFamily] {
+        #if os(watchOS)
+            return [.accessoryRectangular, .accessoryCircular, .accessoryCorner, .accessoryInline]
+        #else
+            return [.accessoryRectangular, .accessoryCircular, .accessoryInline]
+        #endif
     }
 }
 

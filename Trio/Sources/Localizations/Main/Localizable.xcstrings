@@ -126194,6 +126194,9 @@
         }
       }
     },
+    "Enable uploading of sensor errors and other CGM states to Nightscout as notes." : {
+
+    },
     "Enabled" : {
       "comment" : "Title string for BeepPreference.manualCommands",
       "extractionState" : "manual",
@@ -192666,6 +192669,9 @@
         }
       }
     },
+    "Manual basal %@" : {
+      "comment" : "Accessibility: manual temp basal rate the user set on the pump"
+    },
     "manual entry" : {
       "comment" : "Accessibility: manually entered glucose",
       "localizations" : {
@@ -220193,6 +220199,9 @@
           }
         }
       }
+    },
+    "Notes carry the state name the CGM itself uses, such as sensorFailed or warmup. Each state is noted once, and a state that returns after usable readings resume is noted again." : {
+
     },
     "Nothing is currently running." : {
       "comment" : "No active adjustment to cancel",
@@ -252444,6 +252453,9 @@
           }
         }
       }
+    },
+    "Requires Allow Uploading to Nightscout. Supported for Dexcom G6 and G7." : {
+
     },
     "Reservoir" : {
       "localizations" : {
@@ -287230,6 +287242,9 @@
           }
         }
       }
+    },
+    "Suspended" : {
+      "comment" : "Basal delivery suspended on the pump"
     },
     "Suspending insulin delivery..." : {
       "comment" : "Text for suspend resume button when insulin delivery is suspending",
@@ -332516,6 +332531,9 @@
         }
       }
     },
+    "Upload CGM Sensor States" : {
+
+    },
     "Upload Glucose" : {
       "localizations" : {
         "bg" : {
@@ -345262,6 +345280,12 @@
           }
         }
       }
+    },
+    "When your CGM reports a state where it cannot give a usable reading, such as a sensor error or warmup, Trio uploads that state to Nightscout as a note." : {
+
+    },
+    "When your CGM reports a state where it cannot give a usable reading, such as a sensor error or warmup, Trio uploads that state to Nightscout as a note. Supported for Dexcom G6 and G7." : {
+
     },
     "which is below your Threshold (" : {
       "comment" : "Bolus pop-up / Alert string. Make translations concise!",
