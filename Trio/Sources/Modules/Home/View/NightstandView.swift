@@ -12,8 +12,6 @@ struct NightstandView: View {
     let units: GlucoseUnits
     let lowGlucose: Decimal
     let highGlucose: Decimal
-    let currentGlucoseTarget: Decimal
-    let glucoseColorScheme: GlucoseColorScheme
     let glucose: [GlucoseStored] // last two readings, oldest first
     let eventualGlucose: Decimal?
     let history: [GlucoseStored]
@@ -140,10 +138,10 @@ struct NightstandView: View {
             }
             RuleMark(y: .value("Low", low))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                .foregroundStyle(Color.red.opacity(0.6))
+                .foregroundStyle(Color.dynamicRed.opacity(0.6))
             RuleMark(y: .value("High", high))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                .foregroundStyle(Color.orange.opacity(0.6))
+                .foregroundStyle(Self.yellow.opacity(0.6))
             RuleMark(x: .value("Now", now))
                 .lineStyle(StrokeStyle(lineWidth: 1))
                 .foregroundStyle(Color.white.opacity(0.25))
@@ -153,7 +151,7 @@ struct NightstandView: View {
                     y: .value("Glucose", reading.value)
                 )
                 .symbolSize(10)
-                .foregroundStyle(pointColor(for: reading.value))
+                .foregroundStyle(rangeColor(for: reading.value))
             }
         }
         .chartXScale(domain: start ... end)
@@ -172,12 +170,6 @@ struct NightstandView: View {
         }
     }
 
-    private func pointColor(for value: Int) -> Color {
-        let glucose = Decimal(value)
-        if glucose <= lowGlucose { return .red }
-        if glucose >= highGlucose { return .orange }
-        return Color.white.opacity(0.8)
-    }
 
     // MARK: - Glucose
 
@@ -218,20 +210,21 @@ struct NightstandView: View {
         }
     }
 
-    /// Matches `CurrentGlucoseView`: in range uses the primary color, outside it the range colors.
+    /// Green in range, yellow at or above the high limit, red at or below the low limit.
     private var glucoseColor: Color {
         guard isReadingFresh, let value = glucose.last?.glucose else { return .secondary }
-        let glucose = Decimal(value)
-        guard glucose <= lowGlucose || glucose >= highGlucose else { return .primary }
-        let isDynamic = glucoseColorScheme == .dynamicColor
-        return Trio.getDynamicGlucoseColor(
-            glucoseValue: glucose,
-            highGlucoseColorValue: isDynamic ? 220 : highGlucose,
-            lowGlucoseColorValue: isDynamic ? 55 : lowGlucose,
-            targetGlucose: currentGlucoseTarget,
-            glucoseColorScheme: glucoseColorScheme
-        )
+        return rangeColor(for: Int(value))
     }
+
+    private func rangeColor(for value: Int) -> Color {
+        let glucose = Decimal(value)
+        if glucose <= lowGlucose { return .dynamicRed }
+        if glucose >= highGlucose { return Self.yellow }
+        return .dynamicGreen
+    }
+
+    /// Same saturation and brightness as Trio's `dynamicRed` / `dynamicGreen`.
+    private static let yellow = Color(hue: 55.0 / 360.0, saturation: 0.6, brightness: 0.9)
 
     // MARK: - Brightness
 

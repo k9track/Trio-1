@@ -627,8 +627,6 @@ extension Home {
                     units: state.units,
                     lowGlucose: state.lowGlucose,
                     highGlucose: state.highGlucose,
-                    currentGlucoseTarget: state.currentGlucoseTarget,
-                    glucoseColorScheme: state.glucoseColorScheme,
                     glucose: state.latestTwoGlucoseValues,
                     eventualGlucose: state.enactedAndNonEnactedDeterminations.first?.eventualBG as Decimal?,
                     history: state.glucoseFromPersistence,
