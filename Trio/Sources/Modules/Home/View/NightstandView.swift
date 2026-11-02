@@ -61,42 +61,46 @@ struct NightstandView: View {
     }
 
     @ViewBuilder private func content(now: Date) -> some View {
-        HStack(alignment: .center, spacing: 32) {
-            VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .center, spacing: 24) {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .center, spacing: 12) {
                     Text(glucoseText)
-                        .font(.system(size: 120, weight: .bold, design: .rounded))
+                        .font(.system(size: 190, weight: .bold, design: .rounded))
                         .foregroundStyle(glucoseColor)
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
                     if isReadingFresh, let arrow = trendArrow {
                         Image(systemName: arrow)
-                            .font(.system(size: 64, weight: .bold))
+                            .font(.system(size: 90, weight: .bold))
                             .foregroundStyle(glucoseColor)
                     }
                 }
-                Text(detailText(now: now))
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                if let eventualGlucose {
-                    Label {
-                        Text(eventualGlucose.formatted(for: units))
-                    } icon: {
-                        Image(systemName: "arrow.right.circle")
+                HStack(spacing: 20) {
+                    Text(detailText(now: now))
+                    if let eventualGlucose {
+                        Label {
+                            Text(eventualGlucose.formatted(for: units))
+                        } icon: {
+                            Image(systemName: "arrow.right.circle")
+                        }
+                        .accessibilityLabel(Text("Eventual glucose \(eventualGlucose.formatted(for: units))"))
                     }
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(Text("Eventual glucose \(eventualGlucose.formatted(for: units))"))
                 }
+                .font(.title.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             }
+            .layoutPriority(1)
             Spacer(minLength: 0)
             Text(now, style: .time)
-                .font(.system(size: 96, weight: .light, design: .rounded))
+                .font(.system(size: 80, weight: .light, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.85))
                 .minimumScaleFactor(0.4)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 48)
+        // Clear the Dynamic Island, which sits on the left or right edge depending on the way the phone is turned
+        .padding(.horizontal, 72)
     }
 
     // MARK: - Glucose
