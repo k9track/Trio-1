@@ -215,7 +215,7 @@ private extension Character {
     private func handlePair(_ message: [String: Any], reply: @escaping Reply) {
         let rawID = message["id"] as? String ?? ""
         func reject(_ msg: String) {
-            debug(.watchManager, "Garmin pairing: rejected: \(msg)")
+            debug(.watch, "Garmin pairing: rejected: \(msg)")
             reply(["t": "pairAck", "id": rawID, "ok": false, "msg": msg])
         }
 
@@ -241,7 +241,7 @@ private extension Character {
         let key = GarminCompanionBolusSettings.makeWatchKey()
         GarminCompanionBolusSettings.closePairing()
         GarminCompanionBolusSettings.authFailures = 0
-        debug(.watchManager, "Garmin pairing: watch paired")
+        debug(.watch, "Garmin pairing: watch paired")
         notify("Garmin watch paired", "Trio Companion on your watch can now send bolus requests.")
         reply(["t": "pairAck", "id": request.id, "ok": true, "key": key, "msg": "Paired"])
     }
@@ -251,7 +251,7 @@ private extension Character {
     private func handleBolus(_ message: [String: Any], reply: @escaping Reply) async {
         let rawID = message["id"] as? String ?? ""
         func reject(_ msg: String, id: String = rawID) {
-            debug(.watchManager, "Garmin bolus: rejected \(id): \(msg)")
+            debug(.watch, "Garmin bolus: rejected \(id): \(msg)")
             reply(["t": "bolusAck", "id": id, "ok": false, "stage": "rejected", "msg": msg])
         }
 
@@ -301,13 +301,13 @@ private extension Character {
         // Accepted. Stored no later than now so a fast watch clock can't block later requests.
         let now = Int(Date().timeIntervalSince1970)
         UserDefaults.standard.set(min(request.timestamp, now), forKey: Self.lastAcceptedKey)
-        debug(.watchManager, "Garmin bolus: accepted \(request.id): \(units) U, \(request.carbs) g")
+        debug(.watch, "Garmin bolus: accepted \(request.id): \(units) U, \(request.carbs) g")
 
         if request.carbs > 0 {
             do {
                 try await saveCarbs(request.carbs)
             } catch {
-                debug(.watchManager, "Garmin bolus: saving carbs failed: \(error)")
+                debug(.watch, "Garmin bolus: saving carbs failed: \(error)")
                 reply(["t": "bolusAck", "id": request.id, "ok": false, "stage": "rejected", "msg": "Couldn't save carbs"])
                 return
             }
@@ -335,7 +335,7 @@ private extension Character {
         reply(["t": "bolusAck", "id": request.id, "ok": true, "stage": "delivering", "msg": "Delivering \(units) U"])
         await apsManager
             .enactBolus(amount: NSDecimalNumber(decimal: units).doubleValue, isSMB: false) { [weak self] success, msg in
-                debug(.watchManager, "Garmin bolus: \(request.id) \(success ? "started" : "failed"): \(msg)")
+                debug(.watch, "Garmin bolus: \(request.id) \(success ? "started" : "failed"): \(msg)")
                 if success {
                     Task { @MainActor in self?.recentWatchBoluses.append((Date(), units)) }
                     self?.notify(
@@ -423,7 +423,7 @@ private extension Character {
     private func recordAuthFailure() {
         GarminCompanionBolusSettings.authFailures += 1
         let failures = GarminCompanionBolusSettings.authFailures
-        debug(.watchManager, "Garmin bolus: authentication failed (\(failures) in a row)")
+        debug(.watch, "Garmin bolus: authentication failed (\(failures) in a row)")
         guard failures >= GarminCompanionBolusSettings.maxAuthFailures else { return }
         UserDefaults.standard.set(false, forKey: GarminCompanionBolusSettings.enabledKey)
         GarminCompanionBolusSettings.closePairing()
