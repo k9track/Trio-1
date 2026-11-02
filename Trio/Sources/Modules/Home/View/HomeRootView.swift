@@ -612,7 +612,7 @@ extension Home {
                 ))
             }
             .onAppear { UIDevice.current.beginGeneratingDeviceOrientationNotifications() }
-            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            .onReceive(Foundation.NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                 updateNightstand(for: UIDevice.current.orientation)
             }
             .onChange(of: selectedTab) {

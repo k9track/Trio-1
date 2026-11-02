@@ -125,8 +125,8 @@ struct NightstandView: View {
 
     private var trendArrow: String? {
         switch glucose.last?.directionEnum {
-        case .tripleUp,
-             .doubleUp: return "arrow.up.to.line"
+        case .doubleUp,
+             .tripleUp: return "arrow.up.to.line"
         case .singleUp: return "arrow.up"
         case .fortyFiveUp: return "arrow.up.right"
         case .flat: return "arrow.right"
