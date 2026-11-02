@@ -51,6 +51,8 @@ extension Home {
         @State var chartReadoutDeterminationDate: Date? = nil
         /// Whether the readout owns the meal slot. The one thing the fade is keyed on.
         @State var isChartReadoutVisible = false
+        /// Set while the phone lies on its side on the Home tab; the nightstand view is drawn at this angle.
+        @State var nightstandRotation: Angle?
 
         @FetchRequest(fetchRequest: OverrideStored.fetch(
             NSPredicate.lastActiveOverride,
@@ -608,6 +610,44 @@ extension Home {
                     localized: "Quick-Pick Treatments learns from your manual boluses and carb entries over time. Once you've logged a few, it will suggest amounts based on what you typically enter at this time of day.",
                     comment: "Alert body explaining that quick-pick treatments history is empty"
                 ))
+            }
+            .onAppear { UIDevice.current.beginGeneratingDeviceOrientationNotifications() }
+            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+                updateNightstand(for: UIDevice.current.orientation)
+            }
+            .onChange(of: selectedTab) {
+                if selectedTab != 0 { nightstandRotation = nil }
+            }
+            .fullScreenCover(isPresented: Binding(
+                get: { nightstandRotation != nil },
+                set: { if !$0 { nightstandRotation = nil } }
+            )) {
+                NightstandView(
+                    rotation: nightstandRotation ?? .zero,
+                    units: state.units,
+                    lowGlucose: state.lowGlucose,
+                    highGlucose: state.highGlucose,
+                    currentGlucoseTarget: state.currentGlucoseTarget,
+                    glucoseColorScheme: state.glucoseColorScheme,
+                    glucose: state.latestTwoGlucoseValues,
+                    eventualGlucose: state.enactedAndNonEnactedDeterminations.first?.eventualBG as Decimal?
+                )
+            }
+        }
+
+        /// Sideways on the Home tab opens the nightstand view, upright closes it.
+        /// Face up/down and unknown keep the current state so lying flat doesn't flicker it.
+        private func updateNightstand(for orientation: UIDeviceOrientation) {
+            switch orientation {
+            case .landscapeLeft:
+                if selectedTab == 0 { nightstandRotation = .degrees(90) }
+            case .landscapeRight:
+                if selectedTab == 0 { nightstandRotation = .degrees(-90) }
+            case .portrait,
+                 .portraitUpsideDown:
+                nightstandRotation = nil
+            default:
+                break
             }
         }
     }

@@ -1146,6 +1146,9 @@
     "Email" : {
 
     },
+    "Eventual glucose %@" : {
+
+    },
     "Fill in any of these so the team can follow up with you." : {
 
     },
@@ -1162,6 +1165,9 @@
 
     },
     "iPhone Model" : {
+
+    },
+    "No recent reading" : {
 
     },
     "One of the screenshots couldn't be read. Try choosing it again or leave it out." : {
@@ -1219,6 +1225,9 @@
 
     },
     "Submit" : {
+
+    },
+    "Tap to change brightness" : {
 
     },
     "Thank you. Your report ID is %@. Mention it if you ask about this on Discord or Facebook." : {

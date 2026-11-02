@@ -447,6 +447,7 @@
 		7A11AC0DE00000000000010B /* ScheduledBasalInference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE00000000000000B /* ScheduledBasalInference.swift */; };
 		7A11AC0DE00000000000010C /* ScheduledBasalInferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE00000000000000C /* ScheduledBasalInferenceTests.swift */; };
 		7A11AC0DE00000000000010D /* HomeRootView+Header.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE00000000000000D /* HomeRootView+Header.swift */; };
+		7A11AC0DE000000000000F0B /* NightstandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000F0A /* NightstandView.swift */; };
 		7A11AC0DE00000000000010E /* HomeRootView+MealPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE00000000000000E /* HomeRootView+MealPanel.swift */; };
 		7A11AC0DE000000000000110 /* HomeRootView+BottomControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000010 /* HomeRootView+BottomControls.swift */; };
 		7A11AC0DE000000000000111 /* HomeLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000011 /* HomeLayout.swift */; };
@@ -1672,6 +1673,7 @@
 		7A11AC0DE00000000000000B /* ScheduledBasalInference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledBasalInference.swift; sourceTree = "<group>"; };
 		7A11AC0DE00000000000000C /* ScheduledBasalInferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledBasalInferenceTests.swift; sourceTree = "<group>"; };
 		7A11AC0DE00000000000000D /* HomeRootView+Header.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeRootView+Header.swift"; sourceTree = "<group>"; };
+		7A11AC0DE000000000000F0A /* NightstandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightstandView.swift; sourceTree = "<group>"; };
 		7A11AC0DE00000000000000E /* HomeRootView+MealPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeRootView+MealPanel.swift"; sourceTree = "<group>"; };
 		7A11AC0DE000000000000010 /* HomeRootView+BottomControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeRootView+BottomControls.swift"; sourceTree = "<group>"; };
 		7A11AC0DE000000000000011 /* HomeLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeLayout.swift; sourceTree = "<group>"; };
@@ -2848,6 +2850,7 @@
 				7A11AC0DE000000000000010 /* HomeRootView+BottomControls.swift */,
 				7A11AC0DE00000000000000E /* HomeRootView+MealPanel.swift */,
 				7A11AC0DE00000000000000D /* HomeRootView+Header.swift */,
+				7A11AC0DE000000000000F0A /* NightstandView.swift */,
 				3833B51E260264AC003021B3 /* Chart */,
 				3833B51F260264B6003021B3 /* Header */,
 				FDB1D1005DA54C048E622761 /* QuickPickTreatments */,
@@ -6029,6 +6032,7 @@
 				7A11AC0DE000000000000110 /* HomeRootView+BottomControls.swift in Sources */,
 				7A11AC0DE00000000000010E /* HomeRootView+MealPanel.swift in Sources */,
 				7A11AC0DE00000000000010D /* HomeRootView+Header.swift in Sources */,
+				7A11AC0DE000000000000F0B /* NightstandView.swift in Sources */,
 				3E62C7822F54CC1B00433237 /* BolusDisplayThreshold.swift in Sources */,
 				3811DE6125C9D4D500A708ED /* ViewModifiers.swift in Sources */,
 				3811DEAC25C9D88300A708ED /* NightscoutManager.swift in Sources */,
