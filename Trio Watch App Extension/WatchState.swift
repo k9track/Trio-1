@@ -554,8 +554,6 @@ import WidgetKit
         ComplicationDataStore.save(data)
         WidgetCenter.shared.reloadTimelines(ofKind: "TrioWatchComplication")
 
-        Task {
-            await WatchLogger.shared.log("⌚️ Updated watch face complication")
-        }
+        WatchLogger.shared.debug(.data, "Updated watch face complication")
     }
 }
