@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 import UIKit
 
@@ -15,6 +16,11 @@ struct NightstandView: View {
     let glucoseColorScheme: GlucoseColorScheme
     let glucose: [GlucoseStored] // last two readings, oldest first
     let eventualGlucose: Decimal?
+    let history: [GlucoseStored]
+    /// Trio's forecast cone in mg/dL, one value every 5 minutes from `forecastStart`.
+    let minForecast: [Int]
+    let maxForecast: [Int]
+    let forecastStart: Date?
 
     /// Index into `Self.levels`, kept between nights.
     @AppStorage("nightstandBrightnessLevel") private var level = 0
@@ -62,20 +68,27 @@ struct NightstandView: View {
 
     @ViewBuilder private func content(now: Date) -> some View {
         HStack(alignment: .center, spacing: 24) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center, spacing: 12) {
-                    Text(glucoseText)
-                        .font(.system(size: 190, weight: .bold, design: .rounded))
+            HStack(alignment: .center, spacing: 12) {
+                Text(glucoseText)
+                    .font(.system(size: 190, weight: .bold, design: .rounded))
+                    .foregroundStyle(glucoseColor)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                if isReadingFresh, let arrow = trendArrow {
+                    Image(systemName: arrow)
+                        .font(.system(size: 90, weight: .bold))
                         .foregroundStyle(glucoseColor)
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                    if isReadingFresh, let arrow = trendArrow {
-                        Image(systemName: arrow)
-                            .font(.system(size: 90, weight: .bold))
-                            .foregroundStyle(glucoseColor)
-                    }
                 }
-                HStack(spacing: 20) {
+            }
+            .layoutPriority(1)
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(now, style: .time)
+                    .font(.system(size: 72, weight: .light, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(0.85))
+                    .minimumScaleFactor(0.4)
+                    .lineLimit(1)
+                HStack(spacing: 16) {
                     Text(detailText(now: now))
                     if let eventualGlucose {
                         Label {
@@ -86,21 +99,84 @@ struct NightstandView: View {
                         .accessibilityLabel(Text("Eventual glucose \(eventualGlucose.formatted(for: units))"))
                     }
                 }
-                .font(.title.weight(.semibold))
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                trendChart(now: now)
+                    .frame(height: 110)
+                    .padding(.top, 8)
+                    .accessibilityHidden(true)
             }
-            .layoutPriority(1)
-            Spacer(minLength: 0)
-            Text(now, style: .time)
-                .font(.system(size: 80, weight: .light, design: .rounded))
-                .foregroundStyle(Color.white.opacity(0.85))
-                .minimumScaleFactor(0.4)
-                .lineLimit(1)
+            .frame(maxWidth: 320)
         }
         // Clear the Dynamic Island, which sits on the left or right edge depending on the way the phone is turned
         .padding(.horizontal, 72)
+    }
+
+    // MARK: - Trend chart
+
+    /// Last 3 hours of readings and the next 2 hours of Trio's forecast cone, plotted in mg/dL.
+    @ViewBuilder private func trendChart(now: Date) -> some View {
+        let start = now.addingTimeInterval(-3 * 3600)
+        let end = now.addingTimeInterval(2 * 3600)
+        let readings = history.compactMap { reading -> (date: Date, value: Int)? in
+            guard let date = reading.date, date >= start else { return nil }
+            return (date, Int(reading.glucose))
+        }
+        let cone = forecastCone(until: end)
+        let highest = max(readings.map(\.value).max() ?? 0, cone.map(\.high).max() ?? 0, Int(truncating: highGlucose as NSNumber))
+        let low = Double(truncating: lowGlucose as NSNumber)
+        let high = Double(truncating: highGlucose as NSNumber)
+
+        Chart {
+            ForEach(cone, id: \.date) { point in
+                AreaMark(
+                    x: .value("Time", point.date),
+                    yStart: .value("Low", point.low),
+                    yEnd: .value("High", point.high)
+                )
+                .foregroundStyle(Color.blue.opacity(0.35))
+            }
+            RuleMark(y: .value("Low", low))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .foregroundStyle(Color.red.opacity(0.6))
+            RuleMark(y: .value("High", high))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .foregroundStyle(Color.orange.opacity(0.6))
+            RuleMark(x: .value("Now", now))
+                .lineStyle(StrokeStyle(lineWidth: 1))
+                .foregroundStyle(Color.white.opacity(0.25))
+            ForEach(readings, id: \.date) { reading in
+                PointMark(
+                    x: .value("Time", reading.date),
+                    y: .value("Glucose", reading.value)
+                )
+                .symbolSize(14)
+                .foregroundStyle(pointColor(for: reading.value))
+            }
+        }
+        .chartXScale(domain: start ... end)
+        .chartYScale(domain: 40 ... max(250, highest + 10))
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .chartLegend(.hidden)
+    }
+
+    private func forecastCone(until end: Date) -> [(date: Date, low: Int, high: Int)] {
+        guard let forecastStart else { return [] }
+        return zip(minForecast, maxForecast).enumerated().compactMap { index, bounds in
+            let date = forecastStart.addingTimeInterval(TimeInterval(index * 300))
+            guard date <= end else { return nil }
+            return (date, min(bounds.0, bounds.1), max(bounds.0, bounds.1))
+        }
+    }
+
+    private func pointColor(for value: Int) -> Color {
+        let glucose = Decimal(value)
+        if glucose <= lowGlucose { return .red }
+        if glucose >= highGlucose { return .orange }
+        return Color.white.opacity(0.8)
     }
 
     // MARK: - Glucose
