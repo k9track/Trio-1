@@ -116,9 +116,9 @@ struct NightstandView: View {
 
     // MARK: - Trend chart
 
-    /// Last 3 hours of readings and the next 2 hours of Trio's forecast cone, plotted in mg/dL.
+    /// Last 6 hours of readings and the next 2 hours of Trio's forecast cone, plotted in mg/dL.
     @ViewBuilder private func trendChart(now: Date) -> some View {
-        let start = now.addingTimeInterval(-3 * 3600)
+        let start = now.addingTimeInterval(-6 * 3600)
         let end = now.addingTimeInterval(2 * 3600)
         let readings = history.compactMap { reading -> (date: Date, value: Int)? in
             guard let date = reading.date, date >= start else { return nil }
@@ -152,7 +152,7 @@ struct NightstandView: View {
                     x: .value("Time", reading.date),
                     y: .value("Glucose", reading.value)
                 )
-                .symbolSize(14)
+                .symbolSize(10)
                 .foregroundStyle(pointColor(for: reading.value))
             }
         }
