@@ -5,6 +5,8 @@ import SwiftUI
 
 struct ForecastChart: View {
     var state: Treatments.StateModel
+    /// When false the graph is replaced by a line with the current insulin and carbs on board
+    var showsChart = true
     @Environment(\.colorScheme) var colorScheme
 
     @State private var startMarker = Date(timeIntervalSinceNow: -4 * 60 * 60)
@@ -29,9 +31,14 @@ struct ForecastChart: View {
     var body: some View {
         VStack {
             forecastChartLabels
-                .padding(.bottom, 8)
+                .padding(.bottom, showsChart ? 8 : 0)
 
-            forecastChart
+            if showsChart {
+                forecastChart
+            } else {
+                onBoardLine
+                    .padding(.top, 8)
+            }
         }
     }
 
@@ -98,6 +105,24 @@ struct ForecastChart: View {
                     .fill(Color.primary.opacity(0.2))
             }
         }
+    }
+
+    /// Insulin and carbs already on board, as on the Home screen. The chips above show what is being entered now.
+    private var onBoardLine: some View {
+        HStack(spacing: 16) {
+            HStack(spacing: 4) {
+                Text("IOB").foregroundStyle(.secondary)
+                Text(
+                    "\(Formatter.bolusFormatter.string(from: state.iob as NSNumber) ?? state.iob.description) "
+                ) + Text(String(localized: "U", comment: "Insulin unit"))
+            }
+            HStack(spacing: 4) {
+                Text("COB").foregroundStyle(.secondary)
+                Text("\(state.cob) g")
+            }
+            Spacer()
+        }
+        .font(.footnote)
     }
 
     @ViewBuilder private func eventualGlucoseBadge(for eventualBG: Int) -> some View {

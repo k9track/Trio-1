@@ -337,61 +337,58 @@ extension Treatments {
             }
         }
 
-        @ViewBuilder private func proteinAndFat() -> some View {
-            HStack {
-                HStack {
-                    Text("Fat")
-                    TextFieldWithToolBar(
-                        text: $state.fat,
-                        placeholder: "0",
-                        keyboardType: .numberPad,
-                        numberFormatter: mealFormatter,
-                        showArrows: true,
-                        previousTextField: { focusedField = previousField(from: .fat) },
-                        nextTextField: { focusedField = nextField(from: .fat) },
-                        unitsText: String(localized: "g", comment: "Units for carbs")
-                    )
-                    .focused($focusedField, equals: .fat)
-                }
-
-                Divider().foregroundStyle(.primary).fontWeight(.bold).frame(width: 10)
-
-                HStack {
-                    Text("Protein")
-                    TextFieldWithToolBar(
-                        text: $state.protein,
-                        placeholder: "0",
-                        keyboardType: .numberPad,
-                        numberFormatter: mealFormatter,
-                        showArrows: true,
-                        previousTextField: { focusedField = previousField(from: .protein) },
-                        nextTextField: { focusedField = nextField(from: .protein) },
-                        unitsText: String(localized: "g", comment: "Units for carbs")
-                    )
-                    .focused($focusedField, equals: .protein)
+        /// Carbs, plus Fat and Protein when fat/protein conversion is on, side by side as tiles
+        @ViewBuilder private func mealTiles() -> some View {
+            HStack(spacing: 8) {
+                macroTile("Carbs", text: $state.carbs, field: .carbs)
+                    .onChange(of: state.carbs) {
+                        handleDebouncedInput()
+                    }
+                if state.useFPUconversion {
+                    macroTile("Fat", text: $state.fat, field: .fat)
+                    macroTile("Protein", text: $state.protein, field: .protein)
                 }
             }
+            .padding(.vertical, 4)
+            .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
         }
 
-        @ViewBuilder private func carbsTextField() -> some View {
-            HStack {
-                Text("Carbs")
-                Spacer()
+        private func macroTile(_ title: LocalizedStringKey, text: Binding<Decimal>, field: FocusedField) -> some View {
+            let isActive = focusedField == field
+            return VStack(spacing: 2) {
+                Text(title)
+                    .font(.footnote)
+                    .foregroundStyle(isActive ? Color.blue : Color.secondary)
                 TextFieldWithToolBar(
-                    text: $state.carbs,
+                    text: text,
                     placeholder: "0",
+                    textAlignment: .center,
                     keyboardType: .numberPad,
                     numberFormatter: mealFormatter,
                     showArrows: true,
-                    previousTextField: { focusedField = previousField(from: .carbs) },
-                    nextTextField: { focusedField = nextField(from: .carbs) },
+                    previousTextField: { focusedField = previousField(from: field) },
+                    nextTextField: { focusedField = nextField(from: field) },
                     unitsText: String(localized: "g", comment: "Units for carbs")
                 )
-                .focused($focusedField, equals: .carbs)
-                .onChange(of: state.carbs) {
-                    handleDebouncedInput()
-                }
+                // Hug the number so it and its unit sit together in the middle of the tile
+                .fixedSize()
+                .font(.title3.weight(.semibold))
+                .focused($focusedField, equals: field)
             }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(
+                isActive ? Color.blue.opacity(0.2) : Color(.tertiarySystemFill),
+                in: RoundedRectangle(cornerRadius: 10)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.blue, lineWidth: isActive ? 2 : 0)
+            }
+            .animation(.easeInOut(duration: 0.15), value: isActive)
+            .contentShape(Rectangle())
+            .onTapGesture { focusedField = field }
         }
 
         /// Determines the next field to focus on based on the current focused field.
@@ -427,6 +424,11 @@ extension Treatments {
             }
         }
 
+        /// Carbs, Fat and Protein share the tile row, which is tagged with `.carbs`.
+        private func scrollID(for field: FocusedField) -> FocusedField {
+            field == .bolus ? .bolus : .carbs
+        }
+
         /// Scrolls the currently focused input row so it stays visible above the on-screen keyboard.
         private func scrollFocusedFieldIntoView(_ field: FocusedField?, proxy: ScrollViewProxy) {
             guard let field else {
@@ -435,8 +437,7 @@ extension Treatments {
                 return
             }
 
-            // Fat and Protein share a single row, which is tagged with `.fat`.
-            let targetID: FocusedField = (field == .protein) ? .fat : field
+            let targetID = scrollID(for: field)
 
             if isKeyboardVisible {
                 // The keyboard is already on screen (e.g. the user is tabbing between fields with the
@@ -458,13 +459,35 @@ extension Treatments {
             pendingScrollTarget = nil
 
             // Confirm queued target is still in focus
-            let currentTarget: FocusedField? = focusedField.map { $0 == .protein ? .fat : $0 }
+            let currentTarget: FocusedField? = focusedField.map(scrollID(for:))
             guard currentTarget == target else { return }
 
             let duration = (notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
             withAnimation(.easeInOut(duration: duration)) {
                 proxy.scrollTo(target, anchor: .center)
             }
+        }
+
+        /// Barcode scanner icon, with the scanned item count and carbs beside it once something is scanned
+        private var scanFoodButton: some View {
+            Button {
+                showBarcodeScanner = true
+            } label: {
+                HStack(spacing: 4) {
+                    if scannedMeal.hasItems {
+                        Text("\(scannedMeal.items.count) · \(String(format: "%.0f", scannedMeal.totalCarbs)) g")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Image(systemName: "barcode.viewfinder")
+                        .font(.title3)
+                        .foregroundColor(.blue)
+                }
+                .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(Text("Scan Food Items"))
         }
 
         /// Own view for Reduced Bolus / Super Bolus toggles, the recommendation readout and the Bolus field
@@ -566,6 +589,7 @@ extension Treatments {
                     }
             }
             .id(FocusedField.bolus)
+            .listRowBackground(focusedField == .bolus ? Color.blue.opacity(0.2) : Color.chart)
 
             HStack {
                 Text("External Insulin")
@@ -580,18 +604,15 @@ extension Treatments {
                     ScrollViewReader { proxy in
                         List {
                             Section {
-                                ForecastChart(state: state)
-                                    .padding(.vertical)
+                                ForecastChart(state: state, showsChart: false)
+                                    .padding(.vertical, 4)
                             }.listRowBackground(Color.chart)
 
                             Section {
-                                carbsTextField()
+                                mealTiles()
                                     .id(FocusedField.carbs)
 
                                 if state.useFPUconversion {
-                                    proteinAndFat()
-                                        .id(FocusedField.fat)
-
                                     if showFatProteinOrderBanner {
                                         HStack {
                                             Image(systemName: "arrow.left.arrow.right")
@@ -660,33 +681,7 @@ extension Treatments {
                                         placeholder: String(localized: "Note..."),
                                         maxLength: 25
                                     )
-                                }
-
-                                // Barcode scanner button
-                                HStack {
-                                    if scannedMeal.hasItems {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("\(scannedMeal.items.count) items")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            Text("C: \(String(format: "%.1f", scannedMeal.totalCarbs))g")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
-
-                                    Spacer()
-
-                                    Button(action: {
-                                        showBarcodeScanner = true
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "barcode.viewfinder")
-                                            Text("Scan Food Items")
-                                        }
-                                        .foregroundColor(.blue)
-                                    }
-                                    .buttonStyle(.borderless)
+                                    scanFoodButton
                                 }
                             }.listRowBackground(Color.chart)
 
@@ -697,8 +692,8 @@ extension Treatments {
                             treatmentButton
                         }
                         .listSectionSpacing(sectionSpacing)
-                        // iOS's default on iPhone; iPhone Duo defaults to 0, which put the first row under the sheet's bar
-                        .contentMargins(.top, 35, for: .scrollContent)
+                        // Clears the sheet's bar; iPhone Duo defaults to 0, and iOS's 35 still tucked the summary card under the bar
+                        .contentMargins(.top, 55, for: .scrollContent)
                         .onChange(of: focusedField) { _, newValue in
                             scrollFocusedFieldIntoView(newValue, proxy: proxy)
                         }
