@@ -35,7 +35,7 @@ struct CurrentGlucoseView: View {
     @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
-        let triangleColor = Color(red: 0.262745098, green: 0.7333333333, blue: 0.9137254902)
+        let triangleColor = rangeColor ?? Color(red: 0.262745098, green: 0.7333333333, blue: 0.9137254902)
 
         if cgmAvailable {
             if let stale = stalenessState {
@@ -98,8 +98,12 @@ struct CurrentGlucoseView: View {
                 )
             }
 
-            TrendShape(gradient: angularGradient, color: triangleColor, showArrow: true)
-                .rotationEffect(.degrees(rotationDegrees))
+            TrendShape(
+                gradient: rangeColor.map { AngularGradient(colors: [$0, $0], center: .center) } ?? angularGradient,
+                color: triangleColor,
+                showArrow: true
+            )
+            .rotationEffect(.degrees(rotationDegrees))
 
             VStack(alignment: .center) {
                 bobbleContent()
@@ -353,6 +357,25 @@ struct CurrentGlucoseView: View {
         case .normal: return .secondary
         }
     }
+
+    /// Ring and arrow color for the latest reading: red at or below the low limit, green in range,
+    /// then orange at the high limit shading to red by `highestColorGlucose` mg/dL.
+    private var rangeColor: Color? {
+        guard let value = glucose.last?.glucose, value > 0 else { return nil }
+        let glucose = Decimal(value)
+        if glucose <= lowGlucose { return .red }
+        if glucose < highGlucose { return .green }
+        let span = max(Self.highestColorGlucose - highGlucose, 1)
+        let fraction = min(max((glucose - highGlucose) / span, 0), 1)
+        let orangeHue = 30.0
+        return Color(
+            hue: orangeHue * (1 - Double(truncating: fraction as NSNumber)) / 360.0,
+            saturation: 0.9,
+            brightness: 1
+        )
+    }
+
+    private static let highestColorGlucose: Decimal = 250
 
     private func glucoseColor(for glucoseValue: Int16) -> Color {
         // TODO: workaround for now: set low value to 55, to have dynamic color shades between 55 and user-set low (approx. 70); same for high glucose
