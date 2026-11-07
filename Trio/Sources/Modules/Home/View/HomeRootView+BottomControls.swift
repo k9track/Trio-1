@@ -517,6 +517,49 @@ extension Home.RootView {
         return gmiPercentage.formatted(.number.precision(.fractionLength(1))) + " %"
     }
 
+    /// Low / in range / high split with each share labelled, plus average and GMI.
+    @ViewBuilder func rangeBreakdown(
+        stats: HomeStatsPanelStats,
+        range: HomeStatsPanelRange,
+        averageString: String,
+        gmi: String
+    ) -> some View {
+        let low = stats.veryLowPct + stats.lowPct
+        let high = stats.highPct + stats.veryHighPct
+        let percent: (Double) -> String = { stats.hasData ? $0.formatted(.number.precision(.fractionLength(0))) + " %" : "-- %" }
+
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(range.displayName)
+                    .font(.subheadline).fontWeight(.semibold)
+                Spacer(minLength: 8)
+                Text("Avg \(averageString) \u{00B7} GMI \(gmi)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+
+            statsDistributionBar(stats.hasData ? [
+                (.red, CGFloat(low / 100)),
+                (.loopGreen, CGFloat(stats.inRangePct / 100)),
+                (.orange, CGFloat(high / 100))
+            ] : [(Color.secondary.opacity(0.3), 1)])
+                .frame(height: 8)
+
+            HStack {
+                Text("Low \(percent(low))").foregroundStyle(.red)
+                Spacer()
+                Text("In range \(percent(stats.inRangePct))").foregroundStyle(Color.loopGreen)
+                Spacer()
+                Text("High \(percent(high))").foregroundStyle(.orange)
+            }
+            .font(.caption2.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+        }
+    }
+
     @ViewBuilder func statsBanner() -> some View {
         let face = state.settingsManager?.settings.homeStatsPanelFace ?? .timeInRange
         let range = state.homeStatsPanelRange
@@ -524,9 +567,6 @@ extension Home.RootView {
         let hasData = stats.hasData
         let averageString = stats.meanGlucose?.formatted(withUnits: state.units) ?? "--"
         let gmiValueString = gmiString(stats.meanGlucose)
-        let tirString = hasData
-            ? stats.inRangePct.formatted(.number.precision(.fractionLength(0 ... 1))) + " %"
-            : "-- %"
         let segments: [(color: Color, fraction: CGFloat)] = hasData ? [
             (.red, CGFloat(stats.veryLowPct / 100)),
             (.orange, CGFloat(stats.lowPct / 100)),
@@ -541,26 +581,7 @@ extension Home.RootView {
                 HStack(alignment: .center, spacing: 12) {
                     switch face {
                     case .timeInRange:
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                Text(tirString)
-                                    .font(.title2).fontWeight(.bold).fontDesign(.rounded)
-                                    .foregroundStyle(.primary)
-                                // chart shows 72h; make the reported scope explicit
-                                (
-                                    Text("Time in Range", comment: "Stats banner subtitle").fontWeight(.semibold)
-                                        + Text(" ")
-                                        + Text(range.scopeName)
-                                )
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            }
-
-                            statsDistributionBar(segments)
-                                .frame(height: 6)
-                        }
+                        rangeBreakdown(stats: stats, range: range, averageString: averageString, gmi: gmiValueString)
                     case .distributionBar:
                         VStack(alignment: .leading, spacing: 6) {
                             (
@@ -746,24 +767,38 @@ extension Home.RootView {
         ))
     }
 
+    /// The adjustment/bolus slot only shows while a bolus, override or temp target is running.
+    var showsAdjustmentPanel: Bool {
+        state.bolusProgress != nil || overrideString != nil || tempTargetString != nil
+    }
+
+    /// Height of the bottom zone, without the adjustment slot when it's hidden.
+    var bottomZoneHeight: CGFloat {
+        HomeLayout.bottomZoneHeight - (showsAdjustmentPanel ? 0 : HomeLayout.bottomPanelHeight + HomeLayout.bottomZonePadding)
+    }
+
     /// Bottom-anchored fixed zone: adjustment/bolus panel above the stats banner.
     @ViewBuilder func bottomControls() -> some View {
         VStack(spacing: HomeLayout.bottomZonePadding) {
-            Group {
-                if let progress = state.bolusProgress {
-                    bolusView(progress)
-                } else {
-                    adjustmentView()
+            if showsAdjustmentPanel {
+                Group {
+                    if let progress = state.bolusProgress {
+                        bolusView(progress)
+                    } else {
+                        adjustmentView()
+                    }
                 }
+                .frame(height: HomeLayout.bottomPanelHeight)
+                .animation(.easeInOut(duration: 0.2), value: state.bolusProgress != nil)
             }
-            .frame(height: HomeLayout.bottomPanelHeight)
-            .animation(.easeInOut(duration: 0.2), value: state.bolusProgress != nil)
 
             multiUsePanel()
                 .frame(height: HomeLayout.statsBannerHeight)
                 .overlay(alignment: .top) {
-                    // centered in the gap between the two rows
-                    Divider().offset(y: -HomeLayout.bottomZonePadding / 2)
+                    if showsAdjustmentPanel {
+                        // centered in the gap between the two rows
+                        Divider().offset(y: -HomeLayout.bottomZonePadding / 2)
+                    }
                 }
         }
         .padding(.vertical, HomeLayout.bottomZonePadding)

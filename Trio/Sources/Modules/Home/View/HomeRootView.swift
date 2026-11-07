@@ -77,7 +77,7 @@ extension Home {
         @ViewBuilder func mainChart(geo: GeometryProxy) -> some View {
             // the chart is the only flexible zone: it takes what the fixed slots leave over
             let chartHeight = max(
-                geo.size.height - HomeLayout.headerHeight - HomeLayout.mealSlotHeight - HomeLayout.bottomZoneHeight,
+                geo.size.height - HomeLayout.headerHeight - HomeLayout.mealSlotHeight - bottomZoneHeight,
                 HomeLayout.chartMinHeight
             )
             ZStack {
@@ -379,57 +379,34 @@ extension Home {
             }
         }
 
-        /// Legacy layout on the glass bar: a dead middle slot with the
-        /// treatment button overlaid; the slot's selection is swallowed.
+        /// Flat, full-width bar of our own instead of iOS 26's floating glass pill.
+        /// The system bar is hidden per tab so it stays hidden on pushed screens too.
         @available(iOS 26.0, *)
         @ViewBuilder private func modernTabBar() -> some View {
-            ZStack(alignment: .bottom) {
-                TabView(selection: modernTabSelection) {
-                    let carbsRequiredBadge: String? = carbsRequiredBadgeValue
-
+            VStack(spacing: 0) {
+                TabView(selection: $selectedTab) {
                     NavigationStack { mainView() }
-                        .tabItem { Label("", systemImage: "chart.xyaxis.line").accessibilityLabel(Text("Main")) }
-                        .badge(carbsRequiredBadge).tag(0)
+                        .toolbar(.hidden, for: .tabBar)
+                        .tag(0)
 
                     NavigationStack { History.RootView(resolver: resolver) }
-                        .tabItem { Label("", systemImage: historySFSymbol).accessibilityLabel(Text("History")) }.tag(1)
-
-                    Spacer()
-                        // nbsp title + empty image: invisible item that still
-                        // holds a full-width slot for the overlaid button
-                        .tabItem { Label {
-                            Text(String(repeating: "\u{00A0}", count: 12))
-                        } icon: {
-                            Image(uiImage: UIImage())
-                        } }
-                        .tag(RootView.treatmentTabTag)
+                        .toolbar(.hidden, for: .tabBar)
+                        .tag(1)
 
                     NavigationStack { Adjustments.RootView(resolver: resolver) }
-                        .tabItem {
-                            Label(
-                                "",
-                                systemImage: "slider.horizontal.2.gobackward"
-                            ).accessibilityLabel(Text("Adjustments")) }.tag(2)
+                        .toolbar(.hidden, for: .tabBar)
+                        .tag(2)
 
                     NavigationStack(path: self.$settingsPath) {
                         Settings.RootView(resolver: resolver) }
                         .environment(settingsSearchHighlight)
-                        .tabItem { Label(
-                            "",
-                            systemImage: "gear"
-                        ).accessibilityLabel(Text("Settings")) }.tag(3)
+                        .toolbar(.hidden, for: .tabBar)
+                        .tag(3)
                 }
                 .tint(Color.tabBar)
 
-                // fixed distance from the physical screen bottom; immune to
-                // safe-area changes (keyboard, accessories)
-                GeometryReader { geo in
-                    treatmentButton
-                        .position(treatmentButtonPosition(in: geo))
-                }
-                .ignoresSafeArea(.all, edges: .bottom)
+                flatTabBar
             }
-            .ignoresSafeArea(.container, edges: .bottom)
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .blur(radius: state.waitForSuggestion ? 8 : 0)
             .onChange(of: selectedTab) {
@@ -437,6 +414,59 @@ extension Home {
                     settingsPath = NavigationPath()
                 }
             }
+        }
+
+        private var flatTabBar: some View {
+            HStack(alignment: .center, spacing: 0) {
+                flatTabItem("Main", systemImage: "chart.xyaxis.line", tag: 0, badge: carbsRequiredBadgeValue)
+                flatTabItem("History", systemImage: historySFSymbol, tag: 1)
+                treatmentButton
+                    .padding(.horizontal, -12)
+                flatTabItem("Adjustments", systemImage: "slider.horizontal.2.gobackward", tag: 2)
+                flatTabItem("Settings", systemImage: "gear", tag: 3)
+            }
+            .padding(.top, 6)
+            .padding(.bottom, 2)
+            .frame(maxWidth: .infinity)
+            .background(.bar, ignoresSafeAreaEdges: .bottom)
+            .overlay(alignment: .top) { Divider() }
+        }
+
+        private func flatTabItem(_ title: LocalizedStringKey, systemImage: String, tag: Int, badge: String? = nil) -> some View {
+            let isSelected = selectedTab == tag
+            return Button {
+                if isSelected, tag == 3 {
+                    // tapping Settings again goes back to its first screen, like the system bar
+                    settingsPath = NavigationPath()
+                }
+                selectedTab = tag
+            } label: {
+                VStack(spacing: 3) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 21, weight: isSelected ? .semibold : .regular))
+                        .frame(height: 26)
+                        .overlay(alignment: .topTrailing) {
+                            if let badge {
+                                Text(badge)
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 4)
+                                    .background(Capsule().fill(Color.red))
+                                    .fixedSize()
+                                    .offset(x: 14, y: -6)
+                            }
+                        }
+                    Text(title)
+                        .font(.caption2.weight(.medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .foregroundStyle(isSelected ? Color.tabBar : Color.secondary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         }
 
         /// System bars laid out vertically (the tab bar on iPhone Duo) add side safe-area
